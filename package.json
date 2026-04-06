@@ -1,7 +1,9 @@
 {
   "name": "react-example",
   "private": true,
-  "version": "1.0.1",
+  "version": "1.0.2",
+  "description": "Bilbao POS — restaurant point of sale (Electron + Express + Supabase)",
+  "author": "Safgate",
   "repository": {
     "type": "git",
     "url": "https://github.com/Safgate/BILBAO.git"
@@ -19,11 +21,11 @@
     "lint": "tsc --noEmit",
     "start": "node server.ts",
     "electron:dev": "concurrently \"tsx server.ts\" \"wait-on http://localhost:3000 && electron --no-sandbox electron-main.cjs\"",
-    "electron:build": "npm run build && npm run build:server && electron-builder",
-    "build:windows": "npm run build && npm run build:server && electron-builder --win",
-    "build:windows:portable": "npm run build && npm run build:server && electron-builder --win --x64 -c.win.target=portable",
-    "build:windows:dir": "npm run build && npm run build:server && electron-builder --win --dir",
-    "build:windows:nsis": "npm run build && npm run build:server && electron-builder --win --x64 -c.win.target=nsis"
+    "electron:build": "npm run build && npm run build:server && electron-builder --publish never",
+    "build:windows": "npm run build && npm run build:server && electron-builder --win --publish never",
+    "build:windows:portable": "npm run build && npm run build:server && electron-builder --win --x64 -c.win.target=portable --publish never",
+    "build:windows:dir": "npm run build && npm run build:server && electron-builder --win --dir --publish never",
+    "build:windows:nsis": "npm run build && npm run build:server && electron-builder --win --x64 -c.win.target=nsis --publish never"
   },
   "main": "electron-main.cjs",
   "build": {

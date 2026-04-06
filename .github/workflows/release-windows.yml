@@ -39,6 +39,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Build uses electron-builder --publish never (CI otherwise triggers implicit publish and fails).
       - name: Build Windows (NSIS Setup + portable)
         run: npm run build:windows
 
