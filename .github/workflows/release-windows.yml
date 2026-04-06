@@ -1,0 +1,60 @@
+# Build the Windows portable .exe and publish it to GitHub Releases.
+#
+# How to publish:
+#   1. Bump "version" in package.json (e.g. 1.0.0).
+#   2. Commit and push to GitHub.
+#   3. Create and push a matching tag:
+#        git tag v1.0.0
+#        git push origin v1.0.0
+#   The workflow runs on windows-latest, runs npm run build:windows, and uploads
+#   dist-electron/*.exe to a Release for that tag.
+#
+# Manual run (no Release): Actions → "Release Windows" → Run workflow → download
+# the artifact from the run summary.
+
+name: Release Windows
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Windows portable (.exe)
+        run: npm run build:windows
+
+      - name: Upload to GitHub Release (tag push only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist-electron/*.exe
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload build artifact (manual workflow runs)
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: bilbao-pos-windows-portable
+          path: dist-electron/*.exe
+          if-no-files-found: error
