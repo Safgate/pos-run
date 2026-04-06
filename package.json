@@ -1,12 +1,12 @@
 {
   "name": "pos-run",
   "private": true,
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "POS Run — restaurant point of sale (Electron + Express + Supabase)",
   "author": "Safgate",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Safgate/BILBAO.git"
+    "url": "https://github.com/Safgate/pos-run.git"
   },
   "type": "module",
   "engines": {
