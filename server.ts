@@ -22,7 +22,7 @@ const menuImageUpload = multer({
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = Number(process.env.PORT) || 3001;
   const server = createServer(app);
   const wss = new WebSocketServer({ server, path: '/ws' });
 

@@ -4,9 +4,6 @@ const fs = require('fs');
 const http = require('http');
 const { spawn } = require('child_process');
 
-/** App URL — use 127.0.0.1 so Windows does not prefer ::1 while the server listens on IPv4 only. */
-const APP_URL = 'http://127.0.0.1:3000/';
-
 function waitForHttpOk(url, timeoutMs = 90000, intervalMs = 250) {
   return new Promise((resolve, reject) => {
     const started = Date.now();
@@ -37,16 +34,6 @@ function waitForHttpOk(url, timeoutMs = 90000, intervalMs = 250) {
 
     tryOnce();
   });
-}
-
-function failedToStartHtml(message) {
-  const esc = String(message).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
-  return `data:text/html;charset=utf-8,${encodeURIComponent(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Bilbao POS</title></head>
-<body style="font-family:system-ui,sans-serif;padding:2rem;max-width:32rem;">
-<h1 style="margin-top:0;">Could not start the app server</h1>
-<p>The embedded server on port 3000 did not become ready in time. Check that nothing else uses port 3000, and that antivirus is not blocking the app.</p>
-<p style="color:#666;font-size:13px;">${esc}</p>
-</body></html>`)}`;
 }
 
 let mainWindow;
@@ -96,6 +83,21 @@ if (app.isPackaged) {
 }
 
 loadEnvFromFile();
+
+/** Default HTTP port (avoid clashing with other apps on 3000). Override with PORT in .env */
+const DEFAULT_APP_PORT = 3001;
+const APP_PORT = Number(process.env.PORT) || DEFAULT_APP_PORT;
+const APP_URL = `http://127.0.0.1:${APP_PORT}/`;
+
+function failedToStartHtml(message) {
+  const esc = String(message).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+  return `data:text/html;charset=utf-8,${encodeURIComponent(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Bilbao POS</title></head>
+<body style="font-family:system-ui,sans-serif;padding:2rem;max-width:32rem;">
+<h1 style="margin-top:0;">Could not start the app server</h1>
+<p>The embedded server on port ${APP_PORT} did not become ready in time. Check that nothing else uses port ${APP_PORT}, and that antivirus is not blocking the app.</p>
+<p style="color:#666;font-size:13px;">${esc}</p>
+</body></html>`)}`;
+}
 
 /**
  * Hidden window + webContents.print({ silent: true }) — no system print dialog.
@@ -197,7 +199,7 @@ function startServer() {
 
   if (isDev) {
     serverProcess = spawn('npx', ['tsx', 'server.ts'], {
-      env: { ...process.env, NODE_ENV: 'development' },
+      env: { ...process.env, NODE_ENV: 'development', PORT: String(APP_PORT) },
       shell: true,
       cwd: __dirname,
     });
@@ -209,6 +211,7 @@ function startServer() {
         NODE_ENV: 'production',
         ELECTRON_RUN_AS_NODE: '1',
         APP_ROOT: appRoot,
+        PORT: String(APP_PORT),
       },
       cwd: appRoot,
       shell: false,
