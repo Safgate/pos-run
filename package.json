@@ -1,7 +1,7 @@
 {
   "name": "pos-run",
   "private": true,
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "POS Run — restaurant point of sale (Electron + Express + Supabase)",
   "author": "Safgate",
   "repository": {
