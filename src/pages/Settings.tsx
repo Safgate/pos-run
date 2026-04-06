@@ -597,7 +597,7 @@ export const Settings: React.FC = () => {
                   value={receiptSettings.receipt_name}
                   onChange={(e) => setReceiptSettings({ ...receiptSettings, receipt_name: e.target.value })}
                   className="w-full px-4 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl outline-none focus:border-emerald-500 transition-all"
-                  placeholder="e.g. BILBAO COFFEE"
+                  placeholder="e.g. POS RUN"
                 />
               </div>
               <div className="space-y-2">
@@ -607,7 +607,7 @@ export const Settings: React.FC = () => {
                   value={receiptSettings.receipt_address}
                   onChange={(e) => setReceiptSettings({ ...receiptSettings, receipt_address: e.target.value })}
                   className="w-full px-4 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl outline-none focus:border-emerald-500 transition-all"
-                  placeholder="e.g. 123 Coffee Street, Bilbao"
+                  placeholder="e.g. 123 Coffee Street"
                 />
               </div>
               <div className="space-y-2">
@@ -628,7 +628,7 @@ export const Settings: React.FC = () => {
                     value={receiptSettings.receipt_wifi_network}
                     onChange={(e) => setReceiptSettings({ ...receiptSettings, receipt_wifi_network: e.target.value })}
                     className="w-full px-4 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl outline-none focus:border-emerald-500 transition-all"
-                    placeholder="e.g. Bilbao_Guest"
+                    placeholder="e.g. POSRun_Guest"
                   />
                 </div>
                 <div className="space-y-2">

@@ -79,10 +79,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab }) =
       {/* Desktop Sidebar */}
       <div className="hidden md:flex w-20 hover:w-64 bg-zinc-900 text-zinc-300 flex-col h-full border-r border-zinc-800 transition-all duration-300 group overflow-hidden z-30">
         <div className="p-6 flex items-center gap-3 border-b border-zinc-800 min-w-[256px]">
-          <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center text-white font-bold text-xl shrink-0">
-            B
+          <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center text-white font-bold text-sm shrink-0">
+            PR
           </div>
-          <h1 className="text-xl font-bold text-white tracking-tight opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">Bilbao</h1>
+          <h1 className="text-xl font-bold text-white tracking-tight opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">POS Run</h1>
         </div>
         <nav className="flex-1 p-4 space-y-2 min-w-[256px]">
           {visibleNavItems.map((item) => {

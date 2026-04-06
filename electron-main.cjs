@@ -91,7 +91,7 @@ const APP_URL = `http://127.0.0.1:${APP_PORT}/`;
 
 function failedToStartHtml(message) {
   const esc = String(message).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
-  return `data:text/html;charset=utf-8,${encodeURIComponent(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Bilbao POS</title></head>
+  return `data:text/html;charset=utf-8,${encodeURIComponent(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>POS Run</title></head>
 <body style="font-family:system-ui,sans-serif;padding:2rem;max-width:32rem;">
 <h1 style="margin-top:0;">Could not start the app server</h1>
 <p>The embedded server on port ${APP_PORT} did not become ready in time. Check that nothing else uses port ${APP_PORT}, and that antivirus is not blocking the app.</p>
@@ -171,7 +171,7 @@ function createWindow(loadUrl = APP_URL) {
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.cjs'),
     },
-    title: 'Bilbao POS',
+    title: 'POS Run',
     icon: path.join(__dirname, 'public/favicon.ico'),
   });
 

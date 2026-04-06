@@ -1,8 +1,8 @@
 {
-  "name": "react-example",
+  "name": "pos-run",
   "private": true,
-  "version": "1.0.3",
-  "description": "Bilbao POS — restaurant point of sale (Electron + Express + Supabase)",
+  "version": "1.0.4",
+  "description": "POS Run — restaurant point of sale (Electron + Express + Supabase)",
   "author": "Safgate",
   "repository": {
     "type": "git",
@@ -31,8 +31,8 @@
   },
   "main": "electron-main.cjs",
   "build": {
-    "appId": "com.bilbao.pos",
-    "productName": "Bilbao POS",
+    "appId": "com.posrun.app",
+    "productName": "POS Run",
     "directories": {
       "output": "dist-electron"
     },

@@ -56,6 +56,6 @@ jobs:
         if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
-          name: bilbao-pos-windows-exe
+          name: pos-run-windows-exe
           path: dist-electron/*.exe
           if-no-files-found: error

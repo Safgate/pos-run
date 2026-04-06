@@ -1,4 +1,4 @@
-# Bilbao POS - Windows Build Instructions
+# POS Run - Windows Build Instructions
 
 To build this application for Windows, you need to follow these steps on your local Windows machine.
 
@@ -11,7 +11,7 @@ To build this application for Windows, you need to follow these steps on your lo
 1.  **Clone the repository:**
     ```bash
     git clone <your-repo-url>
-    cd BILBAO
+    cd your-project-folder
     ```
 
 2.  **Install dependencies:**

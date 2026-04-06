@@ -57,12 +57,12 @@ export const POS: React.FC = () => {
 
     const date = new Date().toLocaleString();
 
-    const receiptName = settings.receipt_name || 'BILBAO COFFEE';
-    const receiptAddress = settings.receipt_address || '123 Coffee Street, Bilbao';
+    const receiptName = settings.receipt_name || 'POS RUN';
+    const receiptAddress = settings.receipt_address || '123 Coffee Street';
     const receiptPhone = settings.receipt_phone || '+123 456 789';
-    const wifiNetwork = settings.receipt_wifi_network || 'Bilbao_Guest';
+    const wifiNetwork = settings.receipt_wifi_network || 'POSRun_Guest';
     const wifiPassword = settings.receipt_wifi_password || 'coffee2024';
-    const receiptFooter = settings.receipt_footer || 'Thank you for choosing Bilbao Coffee!\nFollow us @bilbaocoffee';
+    const receiptFooter = settings.receipt_footer || 'Thank you for choosing POS Run!\nFollow us @posrun';
 
     const styles = `
       /* 72mm roll width; auto height avoids drivers shrinking content to fit a short page */

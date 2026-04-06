@@ -1,4 +1,4 @@
-# Bilbao POS - Native Desktop App
+# POS Run - Native Desktop App
 
 This project is now configured to be built as a native desktop application for **Windows** and **Linux** using **Electron**.
 
@@ -28,7 +28,7 @@ This project is now configured to be built as a native desktop application for *
     npm run build:windows
     ```
 2.  Output is in **`dist-electron/`**:
-    -   **`Bilbao POS-<version>-portable.exe`** — self-extracting portable app (default; works when cross-building from Linux without Wine).
+    -   **`POS Run-<version>-portable.exe`** — self-extracting portable app (default; works when cross-building from Linux without Wine).
     -   **`win-unpacked/`** — unpacked app folder (same as after install; useful for testing).
 
 **NSIS setup installer** (`npm run build:windows:nsis`): building the classic installer from **Linux** requires [Wine](https://www.winehq.org/) (electron-builder runs a Windows-only step). On **Windows**, run the same command for a normal `Setup` installer.
