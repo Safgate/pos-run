@@ -1,7 +1,53 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const http = require('http');
 const { spawn } = require('child_process');
+
+/** App URL — use 127.0.0.1 so Windows does not prefer ::1 while the server listens on IPv4 only. */
+const APP_URL = 'http://127.0.0.1:3000/';
+
+function waitForHttpOk(url, timeoutMs = 90000, intervalMs = 250) {
+  return new Promise((resolve, reject) => {
+    const started = Date.now();
+
+    function retry() {
+      if (Date.now() - started > timeoutMs) {
+        reject(new Error(`Server did not respond at ${url} within ${timeoutMs}ms`));
+        return;
+      }
+      setTimeout(tryOnce, intervalMs);
+    }
+
+    function tryOnce() {
+      const req = http.get(url, (res) => {
+        res.resume();
+        if (res.statusCode >= 200 && res.statusCode < 500) {
+          resolve();
+        } else {
+          retry();
+        }
+      });
+      req.on('error', retry);
+      req.setTimeout(8000, () => {
+        req.destroy();
+        retry();
+      });
+    }
+
+    tryOnce();
+  });
+}
+
+function failedToStartHtml(message) {
+  const esc = String(message).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+  return `data:text/html;charset=utf-8,${encodeURIComponent(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Bilbao POS</title></head>
+<body style="font-family:system-ui,sans-serif;padding:2rem;max-width:32rem;">
+<h1 style="margin-top:0;">Could not start the app server</h1>
+<p>The embedded server on port 3000 did not become ready in time. Check that nothing else uses port 3000, and that antivirus is not blocking the app.</p>
+<p style="color:#666;font-size:13px;">${esc}</p>
+</body></html>`)}`;
+}
 
 let mainWindow;
 let serverProcess;
@@ -114,7 +160,7 @@ ipcMain.handle('print-receipt-html', async (_event, html) => {
   return printReceiptHtml(html);
 });
 
-function createWindow() {
+function createWindow(loadUrl = APP_URL) {
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -127,13 +173,7 @@ function createWindow() {
     icon: path.join(__dirname, 'public/favicon.ico'),
   });
 
-  const isDev = process.env.NODE_ENV === 'development';
-
-  if (isDev) {
-    mainWindow.loadURL('http://localhost:3000');
-  } else {
-    mainWindow.loadURL('http://localhost:3000');
-  }
+  mainWindow.loadURL(loadUrl);
 
   mainWindow.on('closed', () => {
     mainWindow = null;
@@ -193,9 +233,16 @@ function startServer() {
   });
 }
 
-app.on('ready', () => {
+app.on('ready', async () => {
   startServer();
-  setTimeout(createWindow, 2000);
+  let loadUrl = APP_URL;
+  try {
+    await waitForHttpOk(APP_URL);
+  } catch (e) {
+    console.error('Embedded server not ready:', e.message);
+    loadUrl = failedToStartHtml(e.message);
+  }
+  createWindow(loadUrl);
 });
 
 app.on('window-all-closed', () => {
@@ -212,6 +259,6 @@ app.on('quit', () => {
 
 app.on('activate', () => {
   if (mainWindow === null) {
-    createWindow();
+    createWindow(APP_URL);
   }
 });
