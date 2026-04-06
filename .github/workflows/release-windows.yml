@@ -1,4 +1,4 @@
-# Build the Windows portable .exe and publish it to GitHub Releases.
+# Build Windows artifacts (NSIS Setup + portable .exe) and publish to GitHub Releases.
 #
 # How to publish:
 #   1. Bump "version" in package.json (e.g. 1.0.0).
@@ -7,7 +7,7 @@
 #        git tag v1.0.0
 #        git push origin v1.0.0
 #   The workflow runs on windows-latest, runs npm run build:windows, and uploads
-#   dist-electron/*.exe to a Release for that tag.
+#   dist-electron/*.exe (Setup installer + portable) to a Release for that tag.
 #
 # Manual run (no Release): Actions → "Release Windows" → Run workflow → download
 # the artifact from the run summary.
@@ -39,7 +39,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build Windows portable (.exe)
+      - name: Build Windows (NSIS Setup + portable)
         run: npm run build:windows
 
       - name: Upload to GitHub Release (tag push only)
@@ -55,6 +55,6 @@ jobs:
         if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
-          name: bilbao-pos-windows-portable
+          name: bilbao-pos-windows-exe
           path: dist-electron/*.exe
           if-no-files-found: error

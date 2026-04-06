@@ -6,11 +6,27 @@ const { spawn } = require('child_process');
 let mainWindow;
 let serverProcess;
 
-/** Load .env next to electron-main (no dotenv dependency in packaged app). */
+/** Load .env (no dotenv in main). Packaged portable: prefer `.env` next to the .exe. */
 function loadEnvFromFile() {
   try {
-    const envPath = path.join(__dirname, '.env');
-    if (!fs.existsSync(envPath)) return;
+    const candidates = [];
+    if (app.isPackaged) {
+      candidates.push(path.join(path.dirname(process.execPath), '.env'));
+      if (process.resourcesPath) {
+        candidates.push(path.join(process.resourcesPath, '.env'));
+      }
+    }
+    candidates.push(path.join(__dirname, '.env'));
+
+    let envPath;
+    for (const p of candidates) {
+      if (fs.existsSync(p)) {
+        envPath = p;
+        break;
+      }
+    }
+    if (!envPath) return;
+
     const lines = fs.readFileSync(envPath, 'utf8').split(/\r?\n/);
     for (const line of lines) {
       const trimmed = line.trim();
@@ -27,6 +43,10 @@ function loadEnvFromFile() {
   } catch (e) {
     console.warn('Could not load .env:', e.message);
   }
+}
+
+if (app.isPackaged) {
+  process.env.NODE_ENV = 'production';
 }
 
 loadEnvFromFile();
@@ -154,6 +174,15 @@ function startServer() {
       shell: false,
     });
   }
+
+  serverProcess.on('error', (err) => {
+    console.error('Failed to spawn API server:', err);
+  });
+  serverProcess.on('exit', (code, signal) => {
+    if (code !== 0 && code !== null) {
+      console.error(`API server exited with code ${code}${signal ? ` signal ${signal}` : ''}`);
+    }
+  });
 
   serverProcess.stdout.on('data', (data) => {
     console.log(`Server: ${data}`);

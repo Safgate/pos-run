@@ -2,7 +2,6 @@ import express from 'express';
 import path from 'path';
 import crypto from 'crypto';
 import multer from 'multer';
-import { createServer as createViteServer } from 'vite';
 import { WebSocketServer, WebSocket } from 'ws';
 import { createServer } from 'http';
 import { supabase } from './src/lib/supabase';
@@ -582,8 +581,12 @@ async function startServer() {
     res.json({ success: true });
   });
 
-  // Vite middleware for development — do not let Vite handle /api (avoids 404 on API routes)
-  if (process.env.NODE_ENV !== "production") {
+  // Vite for local dev (NODE_ENV unset or not production). Electron child always has ELECTRON_RUN_AS_NODE=1
+  // and must serve static `dist/` — if we only checked NODE_ENV, unset NODE_ENV would try to import `vite`.
+  const useViteDev =
+    process.env.ELECTRON_RUN_AS_NODE !== "1" && process.env.NODE_ENV !== "production";
+  if (useViteDev) {
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
@@ -597,10 +600,11 @@ async function startServer() {
     });
   } else {
     const appRoot = process.env.APP_ROOT || process.cwd();
-    const distPath = path.join(appRoot, 'dist');
+    const distPath = path.resolve(appRoot, "dist");
+    const indexHtml = path.resolve(distPath, "index.html");
     app.use(express.static(distPath));
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
+    app.get("*", (req, res) => {
+      res.sendFile(indexHtml);
     });
   }
 
@@ -609,4 +613,7 @@ async function startServer() {
   });
 }
 
-startServer();
+startServer().catch((err) => {
+  console.error("startServer failed:", err);
+  process.exit(1);
+});

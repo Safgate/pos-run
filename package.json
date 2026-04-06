@@ -21,6 +21,7 @@
     "electron:dev": "concurrently \"tsx server.ts\" \"wait-on http://localhost:3000 && electron --no-sandbox electron-main.cjs\"",
     "electron:build": "npm run build && npm run build:server && electron-builder",
     "build:windows": "npm run build && npm run build:server && electron-builder --win",
+    "build:windows:portable": "npm run build && npm run build:server && electron-builder --win --x64 -c.win.target=portable",
     "build:windows:dir": "npm run build && npm run build:server && electron-builder --win --dir",
     "build:windows:nsis": "npm run build && npm run build:server && electron-builder --win --x64 -c.win.target=nsis"
   },
@@ -38,7 +39,16 @@
       "package.json"
     ],
     "win": {
-      "target": "portable",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ],
       "signAndEditExecutable": false
     },
     "portable": {
@@ -46,7 +56,9 @@
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "${productName}-${version}-Setup.${ext}",
+      "deleteAppDataOnUninstall": false
     }
   },
   "dependencies": {
