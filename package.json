@@ -1,7 +1,7 @@
 {
   "name": "pos-run",
   "private": true,
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "POS Run — restaurant point of sale (Electron + Express + Supabase)",
   "author": "Safgate",
   "repository": {
@@ -17,7 +17,7 @@
     "dev:server:watch": "esbuild server.ts --bundle --platform=node --outfile=dist/server-dev.cjs --external:vite --external:fsevents --external:@vitejs/plugin-react --external:@tailwindcss/vite --watch",
     "dev": "npm run dev:server:build && concurrently \"npm run dev:server:watch\" \"node --watch dist/server-dev.cjs\"",
     "build": "vite build",
-    "build:server": "esbuild server.ts --bundle --platform=node --outfile=dist/server.cjs --external:vite --external:fsevents",
+    "build:server": "esbuild server.ts --bundle --platform=node --outfile=dist/server.cjs --external:vite --external:fsevents --external:@vitejs/plugin-react --external:@tailwindcss/vite",
     "preview": "vite preview",
     "clean": "rm -rf dist dist-electron",
     "lint": "tsc --noEmit",
