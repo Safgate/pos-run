@@ -194,29 +194,27 @@ function createWindow(loadUrl = APP_URL) {
 }
 
 function startServer() {
-  const isDev = process.env.NODE_ENV === 'development';
   const appRoot = __dirname;
 
-  if (isDev) {
-    serverProcess = spawn('npx', ['tsx', 'server.ts'], {
-      env: { ...process.env, NODE_ENV: 'development', PORT: String(APP_PORT) },
-      shell: true,
-      cwd: __dirname,
-    });
-  } else {
-    const serverPath = path.join(appRoot, 'dist', 'server.cjs');
-    serverProcess = spawn(process.execPath, [serverPath], {
-      env: {
-        ...process.env,
-        NODE_ENV: 'production',
-        ELECTRON_RUN_AS_NODE: '1',
-        APP_ROOT: appRoot,
-        PORT: String(APP_PORT),
-      },
-      cwd: appRoot,
-      shell: false,
-    });
+  // Packaged app: spawn bundled API (dist/server.cjs).
+  // Dev (npm run electron:dev): do not spawn — `node --watch dist/server-dev.cjs` in the same script
+  // already serves port APP_PORT; spawning here would duplicate or wrongly load server.cjs (not built).
+  if (!app.isPackaged) {
+    return;
   }
+
+  const serverPath = path.join(appRoot, 'dist', 'server.cjs');
+  serverProcess = spawn(process.execPath, [serverPath], {
+    env: {
+      ...process.env,
+      NODE_ENV: 'production',
+      ELECTRON_RUN_AS_NODE: '1',
+      APP_ROOT: appRoot,
+      PORT: String(APP_PORT),
+    },
+    cwd: appRoot,
+    shell: false,
+  });
 
   serverProcess.on('error', (err) => {
     console.error('Failed to spawn API server:', err);
