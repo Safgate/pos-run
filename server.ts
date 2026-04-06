@@ -586,9 +586,34 @@ async function startServer() {
   const useViteDev =
     process.env.ELECTRON_RUN_AS_NODE !== "1" && process.env.NODE_ENV !== "production";
   if (useViteDev) {
-    const { createServer: createViteServer } = await import("vite");
+    // Do not load vite.config.* here: tsx + folders with "(" in the path break Vite's config load.
+    // Inline dev config; production uses vite.config.js via `vite build`. Use cwd (not import.meta.url)
+    // so the same code works when run via esbuild bundle (electron:dev / npm run dev).
+    const projectRoot = process.env.APP_ROOT || process.cwd();
+    const [{ createServer: createViteServer, loadEnv }, { default: react }, { default: tailwindcss }] =
+      await Promise.all([
+        import("vite"),
+        import("@vitejs/plugin-react"),
+        import("@tailwindcss/vite"),
+      ]);
+    const mode = "development";
+    const env = loadEnv(mode, projectRoot, "");
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      root: projectRoot,
+      configFile: false,
+      plugins: [react(), tailwindcss()],
+      define: {
+        "process.env.GEMINI_API_KEY": JSON.stringify(env.GEMINI_API_KEY),
+      },
+      resolve: {
+        alias: {
+          "@": path.resolve(projectRoot, "."),
+        },
+      },
+      server: {
+        middlewareMode: true,
+        hmr: process.env.DISABLE_HMR !== "true",
+      },
       appType: "spa",
     });
     app.use((req, res, next) => {

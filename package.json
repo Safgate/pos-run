@@ -13,14 +13,16 @@
     "node": ">=20.0.0"
   },
   "scripts": {
-    "dev": "tsx server.ts",
+    "dev:server:build": "esbuild server.ts --bundle --platform=node --outfile=dist/server-dev.cjs --external:vite --external:fsevents --external:@vitejs/plugin-react --external:@tailwindcss/vite",
+    "dev:server:watch": "esbuild server.ts --bundle --platform=node --outfile=dist/server-dev.cjs --external:vite --external:fsevents --external:@vitejs/plugin-react --external:@tailwindcss/vite --watch",
+    "dev": "npm run dev:server:build && concurrently \"npm run dev:server:watch\" \"node --watch dist/server-dev.cjs\"",
     "build": "vite build",
     "build:server": "esbuild server.ts --bundle --platform=node --outfile=dist/server.cjs --external:vite --external:fsevents",
     "preview": "vite preview",
     "clean": "rm -rf dist dist-electron",
     "lint": "tsc --noEmit",
-    "start": "node server.ts",
-    "electron:dev": "concurrently \"tsx server.ts\" \"wait-on http://127.0.0.1:3001 && electron --no-sandbox electron-main.cjs\"",
+    "start": "npm run build:server && NODE_ENV=production node dist/server.cjs",
+    "electron:dev": "npm run dev:server:build && concurrently \"npm run dev:server:watch\" \"node --watch dist/server-dev.cjs\" \"wait-on http://127.0.0.1:3001 && electron --no-sandbox electron-main.cjs\"",
     "electron:build": "npm run build && npm run build:server && electron-builder --publish never",
     "build:windows": "npm run build && npm run build:server && electron-builder --win --publish never",
     "build:windows:portable": "npm run build && npm run build:server && electron-builder --win --x64 -c.win.target=portable --publish never",
@@ -44,11 +46,15 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         },
         {
           "target": "portable",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "signAndEditExecutable": false
