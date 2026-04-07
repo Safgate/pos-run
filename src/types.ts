@@ -63,3 +63,13 @@ export interface StaffPayment {
   created_at: string;
   staff_name?: string;
 }
+
+/** Operating / daily expenses recorded against a shift */
+export interface ShiftExpense {
+  id: number;
+  shift_id: number;
+  amount: number;
+  description: string;
+  expense_date: string;
+  created_at: string;
+}

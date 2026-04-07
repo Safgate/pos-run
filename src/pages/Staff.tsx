@@ -1,14 +1,22 @@
 import React, { useState } from 'react';
+import type { Shift } from '../types';
 import { useAppStore } from '../store';
-import { Plus, Trash2, Clock, CheckCircle, XCircle, Users, Edit2, DollarSign, Wallet, Receipt } from 'lucide-react';
+import { Plus, Trash2, Clock, CheckCircle, XCircle, Users, Edit2, DollarSign, Wallet, Receipt, Banknote } from 'lucide-react';
 import { format, differenceInMinutes, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 
 export const Staff: React.FC = () => {
-  const { staff, shifts, staffPayments } = useAppStore();
+  const { staff, shifts, shiftExpenses, staffPayments } = useAppStore();
   const [isAddingStaff, setIsAddingStaff] = useState(false);
   const [editingStaffId, setEditingStaffId] = useState<number | null>(null);
   const [newStaff, setNewStaff] = useState({ name: '', role: '', hourly_rate: '', pin: '' });
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
+
+  const [expenseShift, setExpenseShift] = useState<Shift | null>(null);
+  const [newShiftExpense, setNewShiftExpense] = useState({ amount: '', description: '', expense_date: '' });
+
+  const expensesForShift = (shiftId: number) => shiftExpenses.filter((e) => e.shift_id === shiftId);
+  const totalShiftExpenses = (shiftId: number) =>
+    expensesForShift(shiftId).reduce((sum, e) => sum + Number(e.amount), 0);
 
   // Payment State
   const [isAddingPayment, setIsAddingPayment] = useState(false);
@@ -66,6 +74,29 @@ export const Staff: React.FC = () => {
     await fetch(`/api/staff/payments/${id}`, { method: 'DELETE' });
   };
 
+  const handleAddShiftExpense = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!expenseShift || !newShiftExpense.amount) return;
+    const body: Record<string, unknown> = {
+      shift_id: expenseShift.id,
+      amount: parseFloat(newShiftExpense.amount),
+      description: newShiftExpense.description || '',
+    };
+    if (newShiftExpense.expense_date) {
+      body.expense_date = newShiftExpense.expense_date;
+    }
+    await fetch('/api/shift-expenses', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    setNewShiftExpense({ amount: '', description: '', expense_date: '' });
+  };
+
+  const handleDeleteShiftExpense = async (id: number) => {
+    await fetch(`/api/shift-expenses/${id}`, { method: 'DELETE' });
+  };
+
   const startEditingStaff = (member: any) => {
     setNewStaff({
       name: member.name,
@@ -103,6 +134,9 @@ export const Staff: React.FC = () => {
     try {
       const res = await fetch(`/api/shifts/${shift.id}/orders`);
       const shiftOrders = await res.json();
+
+      const exps = shiftExpenses.filter((e) => e.shift_id === shift.id);
+      const expensesTotal = exps.reduce((sum, e) => sum + Number(e.amount), 0);
       
       const totalSales = shiftOrders.reduce((sum: number, o: any) => sum + o.total, 0);
       const orderCount = shiftOrders.length;
@@ -149,7 +183,32 @@ export const Staff: React.FC = () => {
                 <span>Total Sales:</span>
                 <span>DH${totalSales.toFixed(2)}</span>
               </div>
+              <div class="row">
+                <span>Shift expenses:</span>
+                <span>DH${expensesTotal.toFixed(2)}</span>
+              </div>
+              <div class="row">
+                <span>Net (sales − expenses):</span>
+                <span>DH${(totalSales - expensesTotal).toFixed(2)}</span>
+              </div>
             </div>
+
+            ${
+              exps.length
+                ? `<div class="order-list">
+              <p style="font-weight: bold; border-bottom: 1px solid #eee; padding-bottom: 2px;">Expenses:</p>
+              ${exps
+                .map(
+                  (x) => `
+                <div class="row">
+                  <span>${x.description || '(no note)'} · ${format(new Date(x.expense_date + 'T12:00:00'), 'MMM d')}</span>
+                  <span>DH${Number(x.amount).toFixed(2)}</span>
+                </div>`
+                )
+                .join('')}
+            </div>`
+                : ''
+            }
 
             <div class="order-list">
               <p style="font-weight: bold; border-bottom: 1px solid #eee; padding-bottom: 2px;">Order Summary:</p>
@@ -384,13 +443,14 @@ export const Staff: React.FC = () => {
             </h2>
 
             <div className="overflow-x-auto -mx-5 md:mx-0">
-              <table className="w-full text-left border-collapse min-w-[600px] md:min-w-0">
+              <table className="w-full text-left border-collapse min-w-[760px] md:min-w-0">
                 <thead>
                   <tr className="border-b border-zinc-200 text-zinc-500 text-xs uppercase tracking-wider">
                     <th className="px-5 md:px-0 pb-3 font-semibold">Staff</th>
                     <th className="pb-3 font-semibold">Date</th>
                     <th className="pb-3 font-semibold">Clock In</th>
                     <th className="pb-3 font-semibold">Clock Out</th>
+                    <th className="pb-3 font-semibold text-right">Expenses</th>
                     <th className="pb-3 font-semibold text-right pr-5 md:pr-0">Earned</th>
                   </tr>
                 </thead>
@@ -402,6 +462,28 @@ export const Staff: React.FC = () => {
                       <td className="py-4 text-emerald-600 font-medium">{format(new Date(shift.start_time), 'h:mm a')}</td>
                       <td className="py-4 text-red-600 font-medium">
                         {shift.end_time ? format(new Date(shift.end_time), 'h:mm a') : <span className="text-orange-500">Active</span>}
+                      </td>
+                      <td className="py-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <span className="text-amber-700 font-medium">
+                            DH{totalShiftExpenses(shift.id).toFixed(2)}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setExpenseShift(shift);
+                              setNewShiftExpense({
+                                amount: '',
+                                description: '',
+                                expense_date: format(new Date(), 'yyyy-MM-dd'),
+                              });
+                            }}
+                            className="p-2 text-zinc-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                            title="Add / view shift expenses"
+                          >
+                            <Banknote size={18} />
+                          </button>
+                        </div>
                       </td>
                       <td className="py-4 text-right font-bold pr-5 md:pr-0">
                         <div className="flex items-center justify-end gap-3">
@@ -423,6 +505,109 @@ export const Staff: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Shift expenses modal */}
+      {expenseShift && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-lg w-full shadow-2xl animate-in fade-in zoom-in duration-200 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <h3 className="text-xl font-bold text-zinc-900 flex items-center gap-2">
+                  <Banknote className="text-amber-600" size={24} />
+                  Shift expenses
+                </h3>
+                <p className="text-sm text-zinc-500 mt-1">
+                  {expenseShift.staff_name} · {format(new Date(expenseShift.start_time), 'MMM d, yyyy h:mm a')}
+                  {expenseShift.end_time ? ` → ${format(new Date(expenseShift.end_time), 'h:mm a')}` : ' (active)'}
+                </p>
+                <p className="text-sm font-semibold text-amber-800 mt-2">
+                  Total: DH{totalShiftExpenses(expenseShift.id).toFixed(2)}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setExpenseShift(null)}
+                className="p-2 text-zinc-400 hover:text-zinc-900 shrink-0"
+                aria-label="Close"
+              >
+                <XCircle size={24} />
+              </button>
+            </div>
+
+            <ul className="space-y-2 mb-6 max-h-48 overflow-y-auto border border-zinc-100 rounded-xl p-3 bg-zinc-50/50">
+              {expensesForShift(expenseShift.id).length === 0 && (
+                <li className="text-sm text-zinc-400 italic">No expenses yet for this shift.</li>
+              )}
+              {expensesForShift(expenseShift.id).map((ex) => (
+                <li
+                  key={ex.id}
+                  className="flex items-start justify-between gap-2 text-sm text-zinc-800 py-1 border-b border-zinc-100 last:border-0"
+                >
+                  <div>
+                    <span className="font-medium">DH{Number(ex.amount).toFixed(2)}</span>
+                    <span className="text-zinc-500"> · {ex.description || '—'}</span>
+                    <span className="text-zinc-400 text-xs block">
+                      {format(new Date(ex.expense_date + 'T12:00:00'), 'MMM d, yyyy')}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteShiftExpense(ex.id)}
+                    className="p-1.5 text-zinc-400 hover:text-red-500 shrink-0"
+                    title="Remove"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </li>
+              ))}
+            </ul>
+
+            <form onSubmit={handleAddShiftExpense} className="space-y-4 border-t border-zinc-100 pt-4">
+              <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Add expense</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-zinc-500 mb-1">Amount (DH)</label>
+                  <input
+                    required
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={newShiftExpense.amount}
+                    onChange={(e) => setNewShiftExpense({ ...newShiftExpense, amount: e.target.value })}
+                    className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2.5 outline-none focus:border-amber-500"
+                    placeholder="0.00"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-zinc-500 mb-1">Date</label>
+                  <input
+                    type="date"
+                    value={newShiftExpense.expense_date}
+                    onChange={(e) => setNewShiftExpense({ ...newShiftExpense, expense_date: e.target.value })}
+                    className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2.5 outline-none focus:border-amber-500"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs text-zinc-500 mb-1">Description</label>
+                <input
+                  type="text"
+                  value={newShiftExpense.description}
+                  onChange={(e) => setNewShiftExpense({ ...newShiftExpense, description: e.target.value })}
+                  placeholder="e.g. supplies, delivery, petty cash"
+                  className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2.5 outline-none focus:border-amber-500"
+                />
+              </div>
+              <button
+                type="submit"
+                className="w-full bg-amber-500 text-white py-3 rounded-2xl font-bold hover:bg-amber-600 transition-all"
+              >
+                Add to shift
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Add Payment Modal */}
       {isAddingPayment && (

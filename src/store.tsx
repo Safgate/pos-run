@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react';
-import { Category, MenuItem, Table, Order, Staff, Shift, StaffPayment } from './types';
+import { Category, MenuItem, Table, Order, Staff, Shift, StaffPayment, ShiftExpense } from './types';
 
 interface AppState {
   categories: Category[];
@@ -8,6 +8,7 @@ interface AppState {
   activeOrders: Order[];
   staff: Staff[];
   shifts: Shift[];
+  shiftExpenses: ShiftExpense[];
   staffPayments: StaffPayment[];
   settings: Record<string, string>;
   currentUser: Staff | null;
@@ -27,6 +28,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [activeOrders, setActiveOrders] = useState<Order[]>([]);
   const [staff, setStaff] = useState<Staff[]>([]);
   const [shifts, setShifts] = useState<Shift[]>([]);
+  const [shiftExpenses, setShiftExpenses] = useState<ShiftExpense[]>([]);
   const [staffPayments, setStaffPayments] = useState<StaffPayment[]>([]);
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [currentUser, setCurrentUser] = useState<Staff | null>(null);
@@ -62,6 +64,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const fetchShifts = async () => {
     const res = await fetch('/api/shifts');
     setShifts(await res.json());
+  };
+
+  const fetchShiftExpenses = async () => {
+    const res = await fetch('/api/shift-expenses');
+    setShiftExpenses(await res.json());
   };
 
   const fetchStaffPayments = async () => {
@@ -145,6 +152,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     fetchActiveOrders();
     fetchStaff();
     fetchShifts();
+    fetchShiftExpenses();
     fetchStaffPayments();
     fetchSettings();
   };
@@ -188,6 +196,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
               break;
             case 'shifts_updated':
               fetchShifts();
+              break;
+            case 'shift_expenses_updated':
+              fetchShiftExpenses();
               break;
             case 'staff_payments_updated':
               fetchStaffPayments();
@@ -233,6 +244,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       activeOrders, 
       staff, 
       shifts, 
+      shiftExpenses,
       staffPayments, 
       settings,
       currentUser, 

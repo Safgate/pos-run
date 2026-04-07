@@ -443,6 +443,51 @@ async function startServer() {
     res.json({ success: true });
   });
 
+  // Shift expenses (daily / operating costs tied to a shift)
+  app.get('/api/shift-expenses', async (_req, res) => {
+    const { data, error } = await supabase.from('shift_expenses').select('*').order('created_at', { ascending: false });
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data || []);
+  });
+
+  app.post('/api/shift-expenses', async (req, res) => {
+    const { shift_id, amount, description, expense_date } = req.body;
+    const sid = Number(shift_id);
+    const amt = Number(amount);
+    if (!Number.isFinite(sid) || sid <= 0) {
+      return res.status(400).json({ error: 'Invalid shift_id' });
+    }
+    if (!Number.isFinite(amt) || amt < 0) {
+      return res.status(400).json({ error: 'Invalid amount' });
+    }
+    const { data: shiftRow, error: shiftErr } = await supabase.from('shifts').select('id').eq('id', sid).maybeSingle();
+    if (shiftErr) return res.status(500).json({ error: shiftErr.message });
+    if (!shiftRow) return res.status(404).json({ error: 'Shift not found' });
+
+    const row: Record<string, unknown> = {
+      shift_id: sid,
+      amount: amt,
+      description: typeof description === 'string' ? description : '',
+    };
+    if (typeof expense_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(expense_date)) {
+      row.expense_date = expense_date;
+    }
+
+    const { data, error } = await supabase.from('shift_expenses').insert([row]).select().single();
+    if (error) return res.status(500).json({ error: error.message });
+    broadcastUpdate('shift_expenses_updated');
+    res.json(data);
+  });
+
+  app.delete('/api/shift-expenses/:id', async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id)) return res.status(400).json({ error: 'Invalid id' });
+    const { error } = await supabase.from('shift_expenses').delete().eq('id', id);
+    if (error) return res.status(500).json({ error: error.message });
+    broadcastUpdate('shift_expenses_updated');
+    res.json({ success: true });
+  });
+
   // Staff Payments (Advances & Salaries)
   app.get('/api/staff/payments', async (req, res) => {
     const { data, error } = await supabase
