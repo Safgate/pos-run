@@ -62,6 +62,9 @@ NSIS and the portable `.exe` need **Wine** when you run `electron-builder` on Li
    WINEARCH=win64 WINEPREFIX="$HOME/.wine" wine wineboot --init
    ```
    As a last resort on Ubuntu, use [WineHQ’s install steps](https://wiki.winehq.org/Ubuntu) for **winehq-stable** (newer Wine than the default repo).
+
+   **Expected noise:** `wine wineboot --init` may print OLE/RpcSs errors (`StdMarshalImpl`, `start_rpcss Failed`, etc.). If the last line is **`wine: configuration in ... has been updated`**, the prefix is fine—those messages are common on Linux and usually do not block **electron-builder**. Reduce log spam when building: `export WINEDEBUG=-all`.
+
 3. Build:
    ```bash
    npm ci
