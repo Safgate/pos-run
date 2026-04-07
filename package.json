@@ -27,7 +27,8 @@
     "build:windows": "npm run build && npm run build:server && electron-builder --win --publish never",
     "build:windows:portable": "npm run build && npm run build:server && electron-builder --win --x64 -c.win.target=portable --publish never",
     "build:windows:dir": "npm run build && npm run build:server && electron-builder --win --dir --publish never",
-    "build:windows:nsis": "npm run build && npm run build:server && electron-builder --win --x64 -c.win.target=nsis --publish never"
+    "build:windows:nsis": "npm run build && npm run build:server && electron-builder --win --x64 -c.win.target=nsis --publish never",
+    "build:windows:cross": "bash scripts/build-windows-cross.sh"
   },
   "main": "electron-main.cjs",
   "build": {

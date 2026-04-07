@@ -34,6 +34,41 @@ To build this application for Windows, you need to follow these steps on your lo
 5.  **Find your installer:**
     Once the build finishes, you will find the `.exe` installer in the `dist-electron/` folder.
 
+## Building Windows installers from Linux (Ubuntu + Wine)
+
+NSIS and the portable `.exe` need **Wine** when you run `electron-builder` on Linux (GitHub Actions uses real Windows; your PC can mimic that locally).
+
+1. Install Wine (one-time, requires `sudo`):
+   ```bash
+   chmod +x scripts/install-wine-ubuntu.sh
+   ./scripts/install-wine-ubuntu.sh
+   ```
+2. Optional: first-time Wine prefix (fixes some NSIS quirks):
+   ```bash
+   wineboot --init
+   ```
+3. Build:
+   ```bash
+   npm ci
+   npm run build:windows
+   ```
+   Or: `npm run build:windows:cross` (wrapper that checks for `wine` and sets quieter Wine logs).
+
+Outputs: `dist-electron/POS Run-<version>-Setup.exe` and `POS Run-<version>-portable.exe`.
+
+Test the portable build on the same machine with Wine (smoke test only; real use is on Windows):
+```bash
+wine ./dist-electron/POS\ Run-*-portable.exe
+```
+(Expect UI quirks under Wine; use a Windows VM or PC for real QA.)
+
+## Windows install issues (other devices)
+
+- **Place `.env` next to the portable `.exe`** (or use the NSIS install folder) with `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`.
+- **Port 3001** must be free (the app embeds a local server).
+- **SmartScreen / antivirus** may block unsigned apps — “More info” → Run anyway, or allow in Windows Security.
+- If the window is blank, ensure nothing else is using port **3001** and try again after a full quit.
+
 ## Development Mode (Electron)
 To run the app in Electron during development:
 ```bash
