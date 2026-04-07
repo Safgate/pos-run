@@ -43,10 +43,25 @@ NSIS and the portable `.exe` need **Wine** when you run `electron-builder` on Li
    chmod +x scripts/install-wine-ubuntu.sh
    ./scripts/install-wine-ubuntu.sh
    ```
-2. Optional: first-time Wine prefix (fixes some NSIS quirks):
+2. First-time Wine prefix (required; use the helper):
    ```bash
-   wineboot --init
+   chmod +x scripts/init-wine-prefix.sh
+   ./scripts/init-wine-prefix.sh
    ```
+   If you see **`wine: could not load kernel32.dll, status c0000135`**, the prefix is usually **corrupt or half‑initialized**. Fix:
+   ```bash
+   # Close anything using Wine, then:
+   rm -rf ~/.wine
+   ./scripts/init-wine-prefix.sh
+   ```
+   If it still fails, install full Wine deps, then retry:
+   ```bash
+   sudo apt-get update
+   sudo apt-get install -y wine wine64 libwine fonts-wine winbind
+   rm -rf ~/.wine
+   WINEARCH=win64 WINEPREFIX="$HOME/.wine" wine wineboot --init
+   ```
+   As a last resort on Ubuntu, use [WineHQ’s install steps](https://wiki.winehq.org/Ubuntu) for **winehq-stable** (newer Wine than the default repo).
 3. Build:
    ```bash
    npm ci
