@@ -12,11 +12,24 @@ export const Dashboard: React.FC = () => {
   const [dailyOrders, setDailyOrders] = useState(0);
   const [topItems, setTopItems] = useState<any[]>([]);
 
+  const getLocalDayRange = (dateStr: string) => {
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const start = new Date(year, month - 1, day, 0, 0, 0, 0);
+    const end = new Date(year, month - 1, day, 23, 59, 59, 999);
+    return { start: start.toISOString(), end: end.toISOString() };
+  };
+
+  const fetchRevenueForDate = async (dateStr: string) => {
+    const { start, end } = getLocalDayRange(dateStr);
+    const params = new URLSearchParams({ start, end });
+    const res = await fetch(`/api/reports/revenue?${params.toString()}`);
+    return res.json();
+  };
+
   useEffect(() => {
     const fetchRevenue = async () => {
-      const res = await fetch(`/api/reports/revenue?date=${selectedDate}`);
-      const data = await res.json();
-      setDailyRevenue(data.reduce((sum: number, order: any) => sum + order.total, 0));
+      const data = await fetchRevenueForDate(selectedDate);
+      setDailyRevenue(data.reduce((sum: number, order: any) => sum + Number(order.total || 0), 0));
       setDailyOrders(data.length);
     };
     const fetchTopItems = async () => {
@@ -29,16 +42,15 @@ export const Dashboard: React.FC = () => {
   }, [selectedDate, activeOrders]); // Re-fetch when active orders change (completed)
 
   useEffect(() => {
-    // Mock last 7 days data for chart
     const generateChartData = async () => {
       const data = [];
       for (let i = 6; i >= 0; i--) {
-        const date = format(subDays(new Date(), i), 'yyyy-MM-dd');
-        const res = await fetch(`/api/reports/revenue?date=${date}`);
-        const orders = await res.json();
+        const day = subDays(new Date(), i);
+        const date = format(day, 'yyyy-MM-dd');
+        const orders = await fetchRevenueForDate(date);
         data.push({
-          name: format(subDays(new Date(), i), 'EEE'),
-          revenue: orders.reduce((sum: number, o: any) => sum + o.total, 0),
+          name: format(day, 'EEE'),
+          revenue: orders.reduce((sum: number, o: any) => sum + Number(o.total || 0), 0),
           orders: orders.length
         });
       }

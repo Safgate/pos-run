@@ -51,7 +51,6 @@ export interface Shift {
   start_time: string;
   end_time: string | null;
   staff_name?: string;
-  hourly_rate?: number;
 }
 
 export interface StaffPayment {

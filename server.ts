@@ -336,7 +336,8 @@ async function startServer() {
 
   app.post('/api/staff', async (req, res) => {
     const { name, role, hourly_rate, pin } = req.body;
-    const { data, error } = await supabase.from('staff').insert([{ name, role, hourly_rate, pin: pin || '0000' }]).select().single();
+    const safeHourlyRate = Number.isFinite(Number(hourly_rate)) ? Number(hourly_rate) : 0;
+    const { data, error } = await supabase.from('staff').insert([{ name, role, hourly_rate: safeHourlyRate, pin: pin || '0000' }]).select().single();
     if (error) return res.status(500).json({ error: error.message });
     broadcastUpdate('staff_updated');
     res.json({ id: data.id });
@@ -345,7 +346,11 @@ async function startServer() {
   app.put('/api/staff/:id', async (req, res) => {
     const { id } = req.params;
     const { name, role, hourly_rate, pin } = req.body;
-    const { error } = await supabase.from('staff').update({ name, role, hourly_rate, pin: pin || '0000' }).eq('id', id);
+    const updateData: Record<string, unknown> = { name, role, pin: pin || '0000' };
+    if (hourly_rate !== undefined) {
+      updateData.hourly_rate = Number.isFinite(Number(hourly_rate)) ? Number(hourly_rate) : 0;
+    }
+    const { error } = await supabase.from('staff').update(updateData).eq('id', id);
     if (error) return res.status(500).json({ error: error.message });
     broadcastUpdate('staff_updated');
     res.json({ success: true });
@@ -386,23 +391,27 @@ async function startServer() {
 
   app.get('/api/shifts/:id/orders', async (req, res) => {
     const { id } = req.params;
-    const { data: shift, error: shiftError } = await supabase.from('shifts').select('*').eq('id', id).single();
+    const shiftId = Number(id);
+    if (!Number.isFinite(shiftId)) {
+      return res.status(400).json({ error: 'Invalid shift id' });
+    }
+    const { data: shift, error: shiftError } = await supabase.from('shifts').select('id').eq('id', shiftId).single();
     if (shiftError) return res.status(500).json({ error: shiftError.message });
+    if (!shift) return res.json([]);
 
     const { data: orders, error: ordersError } = await supabase
       .from('orders')
       .select('*, staff(name)')
-      .eq('staff_id', shift.staff_id)
-      .gte('created_at', shift.start_time)
-      .lte('created_at', shift.end_time || new Date().toISOString())
-      .eq('status', 'completed');
+      .eq('shift_id', shiftId)
+      .eq('status', 'completed')
+      .order('created_at', { ascending: true });
 
     if (ordersError) return res.status(500).json({ error: ordersError.message });
 
     const { data: orderItems, error: itemsError } = await supabase.from('order_items').select('*');
     if (itemsError) return res.status(500).json({ error: itemsError.message });
     
-    const ordersWithItems = orders.map((o: any) => ({
+    const ordersWithItems = (orders || []).map((o: any) => ({
       ...o,
       staff_name: o.staff?.name,
       items: orderItems.filter((i: any) => i.order_id === o.id)
@@ -414,15 +423,14 @@ async function startServer() {
   app.get('/api/shifts', async (req, res) => {
     const { data, error } = await supabase
       .from('shifts')
-      .select('*, staff(name, hourly_rate)')
+      .select('*, staff(name)')
       .order('start_time', { ascending: false });
     
     if (error) return res.status(500).json({ error: error.message });
     
     const shiftsWithStaff = data.map((s: any) => ({
       ...s,
-      staff_name: s.staff?.name,
-      hourly_rate: s.staff?.hourly_rate
+      staff_name: s.staff?.name
     }));
     res.json(shiftsWithStaff);
   });
@@ -533,6 +541,33 @@ async function startServer() {
     res.json({ success: true });
   });
 
+  app.delete('/api/orders/history', async (req, res) => {
+    const { confirmText, acknowledged } = req.body || {};
+    if (confirmText !== 'CLEAR HISTORY' || acknowledged !== true) {
+      return res.status(400).json({ error: 'Safety confirmation failed' });
+    }
+
+    const { data: historicalOrders, error: fetchError } = await supabase
+      .from('orders')
+      .select('id')
+      .in('status', ['completed', 'cancelled']);
+    if (fetchError) return res.status(500).json({ error: fetchError.message });
+
+    const ids = (historicalOrders || []).map((o: any) => o.id);
+    if (ids.length === 0) {
+      return res.json({ success: true, deleted_orders: 0 });
+    }
+
+    const { error: itemsError } = await supabase.from('order_items').delete().in('order_id', ids);
+    if (itemsError) return res.status(500).json({ error: itemsError.message });
+
+    const { error: ordersError } = await supabase.from('orders').delete().in('id', ids);
+    if (ordersError) return res.status(500).json({ error: ordersError.message });
+
+    broadcastUpdate('orders_updated');
+    res.json({ success: true, deleted_orders: ids.length });
+  });
+
   app.delete('/api/orders/:orderId/items/:itemId', async (req, res) => {
     const { orderId, itemId } = req.params;
     
@@ -561,16 +596,23 @@ async function startServer() {
 
   // Reports
   app.get('/api/reports/revenue', async (req, res) => {
-    const { date } = req.query; // YYYY-MM-DD
+    const { date, start, end } = req.query; // date: YYYY-MM-DD, or explicit ISO range
     let query = supabase.from('orders').select('*').eq('status', 'completed');
-    
-    if (date) {
-      // Filter by date (start and end of day)
+
+    if (typeof start === 'string' && typeof end === 'string') {
+      const startDate = new Date(start);
+      const endDate = new Date(end);
+      if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+        return res.status(400).json({ error: 'Invalid start/end range' });
+      }
+      query = query.gte('created_at', startDate.toISOString()).lte('created_at', endDate.toISOString());
+    } else if (typeof date === 'string') {
+      // Backward-compatible fallback for older clients.
       const startOfDay = `${date}T00:00:00.000Z`;
       const endOfDay = `${date}T23:59:59.999Z`;
       query = query.gte('created_at', startOfDay).lte('created_at', endOfDay);
     }
-    
+
     const { data, error } = await query;
     if (error) return res.status(500).json({ error: error.message });
     res.json(data);

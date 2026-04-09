@@ -1,14 +1,16 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import type { Shift } from '../types';
 import { useAppStore } from '../store';
 import { Plus, Trash2, Clock, CheckCircle, XCircle, Users, Edit2, DollarSign, Wallet, Receipt, Banknote } from 'lucide-react';
-import { format, differenceInMinutes, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
+import { format } from 'date-fns';
 
 export const Staff: React.FC = () => {
   const { staff, shifts, shiftExpenses, staffPayments } = useAppStore();
+  const [staffRevenue, setStaffRevenue] = useState<Record<number, number>>({});
+  const [shiftRevenue, setShiftRevenue] = useState<Record<number, number>>({});
   const [isAddingStaff, setIsAddingStaff] = useState(false);
   const [editingStaffId, setEditingStaffId] = useState<number | null>(null);
-  const [newStaff, setNewStaff] = useState({ name: '', role: '', hourly_rate: '', pin: '' });
+  const [newStaff, setNewStaff] = useState({ name: '', role: '', pin: '' });
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
 
   const [expenseShift, setExpenseShift] = useState<Shift | null>(null);
@@ -22,31 +24,50 @@ export const Staff: React.FC = () => {
   const [isAddingPayment, setIsAddingPayment] = useState(false);
   const [newPayment, setNewPayment] = useState({ staff_id: '', amount: '', type: 'advance', description: '' });
 
+  useEffect(() => {
+    const fetchStaffRevenue = async () => {
+      try {
+        const res = await fetch('/api/orders/history');
+        if (!res.ok) return;
+        const orders = await res.json();
+        const revenueByStaff = (orders || []).reduce((acc: Record<number, number>, order: any) => {
+          if (order.status !== 'completed' || !order.staff_id) return acc;
+          acc[order.staff_id] = (acc[order.staff_id] || 0) + Number(order.total || 0);
+          return acc;
+        }, {});
+        const revenueByShift = (orders || []).reduce((acc: Record<number, number>, order: any) => {
+          if (order.status !== 'completed' || !order.shift_id) return acc;
+          acc[order.shift_id] = (acc[order.shift_id] || 0) + Number(order.total || 0);
+          return acc;
+        }, {});
+        setStaffRevenue(revenueByStaff);
+        setShiftRevenue(revenueByShift);
+      } catch (error) {
+        console.error('Failed to fetch staff revenue:', error);
+      }
+    };
+    fetchStaffRevenue();
+  }, [staff, shifts]);
+
   const handleAddStaff = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newStaff.name || !newStaff.role || !newStaff.hourly_rate || !newStaff.pin) return;
+    if (!newStaff.name || !newStaff.role || !newStaff.pin) return;
     
     if (editingStaffId) {
       await fetch(`/api/staff/${editingStaffId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...newStaff,
-          hourly_rate: parseFloat(newStaff.hourly_rate)
-        })
+        body: JSON.stringify(newStaff)
       });
     } else {
       await fetch('/api/staff', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...newStaff,
-          hourly_rate: parseFloat(newStaff.hourly_rate)
-        })
+        body: JSON.stringify(newStaff)
       });
     }
     
-    setNewStaff({ name: '', role: '', hourly_rate: '', pin: '' });
+    setNewStaff({ name: '', role: '', pin: '' });
     setIsAddingStaff(false);
     setEditingStaffId(null);
   };
@@ -101,7 +122,6 @@ export const Staff: React.FC = () => {
     setNewStaff({
       name: member.name,
       role: member.role,
-      hourly_rate: member.hourly_rate.toString(),
       pin: member.pin || '0000'
     });
     setEditingStaffId(member.id);
@@ -124,21 +144,18 @@ export const Staff: React.FC = () => {
     await fetch(`/api/shifts/${shiftId}/close`, { method: 'PUT' });
   };
 
-  const calculatePay = (shift: any) => {
-    if (!shift.end_time) return 0;
-    const mins = differenceInMinutes(new Date(shift.end_time), new Date(shift.start_time));
-    return (mins / 60) * shift.hourly_rate;
-  };
-
   const handlePrintShiftReport = async (shift: any) => {
     try {
       const res = await fetch(`/api/shifts/${shift.id}/orders`);
+      if (!res.ok) {
+        throw new Error('Failed to load shift orders');
+      }
       const shiftOrders = await res.json();
 
       const exps = shiftExpenses.filter((e) => e.shift_id === shift.id);
       const expensesTotal = exps.reduce((sum, e) => sum + Number(e.amount), 0);
       
-      const totalSales = shiftOrders.reduce((sum: number, o: any) => sum + o.total, 0);
+      const totalSales = shiftOrders.reduce((sum: number, o: any) => sum + Number(o.total || 0), 0);
       const orderCount = shiftOrders.length;
       
       const printWindow = window.open('', '_blank');
@@ -149,13 +166,13 @@ export const Staff: React.FC = () => {
           <head>
             <title>Shift Report - ${shift.staff_name}</title>
             <style>
-              body { font-family: 'Courier New', Courier, monospace; padding: 20px; max-width: 300px; margin: 0 auto; }
+              body { font-family: 'Courier New', Courier, monospace; padding: 20px; max-width: 300px; margin: 0 auto; zoom: 2; }
               .header { text-align: center; border-bottom: 1px dashed #000; padding-bottom: 10px; margin-bottom: 10px; }
               .row { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 14px; }
               .total { border-top: 1px dashed #000; margin-top: 10px; padding-top: 10px; font-weight: bold; }
               .footer { text-align: center; margin-top: 20px; font-size: 12px; }
               .order-list { font-size: 12px; margin-top: 10px; }
-              @media print { body { padding: 0; } }
+              @media print { body { padding: 0; zoom: 2; } }
             </style>
           </head>
           <body>
@@ -241,8 +258,7 @@ export const Staff: React.FC = () => {
   };
 
   const getStaffSummary = (staffId: number) => {
-    const staffShifts = shifts.filter(s => s.staff_id === staffId && s.end_time);
-    const totalEarned = staffShifts.reduce((sum, s) => sum + calculatePay(s), 0);
+    const totalRevenue = staffRevenue[staffId] || 0;
     
     const payments = staffPayments.filter(p => p.staff_id === staffId);
     const totalAdvances = payments.filter(p => p.type === 'advance').reduce((sum, p) => sum + p.amount, 0);
@@ -250,11 +266,11 @@ export const Staff: React.FC = () => {
     const totalBonuses = payments.filter(p => p.type === 'bonus').reduce((sum, p) => sum + p.amount, 0);
 
     return {
-      totalEarned,
+      totalRevenue,
       totalAdvances,
       totalSalaries,
       totalBonuses,
-      balance: totalEarned + totalBonuses - totalAdvances - totalSalaries
+      balance: totalRevenue + totalBonuses - totalAdvances - totalSalaries
     };
   };
 
@@ -262,8 +278,8 @@ export const Staff: React.FC = () => {
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6 md:space-y-8 pb-24">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-zinc-900 tracking-tight">Staff & Payroll</h1>
-          <p className="text-zinc-500 mt-1 text-sm md:text-base">Manage employees, shifts, and payments</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-zinc-900 tracking-tight">Staff & Revenue</h1>
+          <p className="text-zinc-500 mt-1 text-sm md:text-base">Manage employees, shifts, and revenue</p>
         </div>
         <div className="flex gap-2 w-full sm:w-auto">
           <button 
@@ -275,7 +291,7 @@ export const Staff: React.FC = () => {
           <button 
             onClick={() => {
               setEditingStaffId(null);
-              setNewStaff({ name: '', role: '', hourly_rate: '', pin: '' });
+              setNewStaff({ name: '', role: '', pin: '' });
               setIsAddingStaff(true);
             }}
             className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-emerald-500 text-white px-5 py-2.5 rounded-xl font-medium hover:bg-emerald-600 transition-colors shadow-sm shadow-emerald-500/20"
@@ -297,7 +313,6 @@ export const Staff: React.FC = () => {
             <form onSubmit={handleAddStaff} className="mb-6 bg-zinc-50 p-4 rounded-xl border border-zinc-200 space-y-3">
               <input required type="text" value={newStaff.name} onChange={e => setNewStaff({...newStaff, name: e.target.value})} placeholder="Name" className="w-full bg-white border border-zinc-300 rounded-lg px-3 py-2 outline-none focus:border-emerald-500" />
               <input required type="text" value={newStaff.role} onChange={e => setNewStaff({...newStaff, role: e.target.value})} placeholder="Role (e.g., Barista)" className="w-full bg-white border border-zinc-300 rounded-lg px-3 py-2 outline-none focus:border-emerald-500" />
-              <input required type="number" step="0.5" value={newStaff.hourly_rate} onChange={e => setNewStaff({...newStaff, hourly_rate: e.target.value})} placeholder="Hourly Rate (DH)" className="w-full bg-white border border-zinc-300 rounded-lg px-3 py-2 outline-none focus:border-emerald-500" />
               <input required type="text" maxLength={4} pattern="\d{4}" value={newStaff.pin} onChange={e => setNewStaff({...newStaff, pin: e.target.value.replace(/\D/g, '')})} placeholder="4-Digit PIN" className="w-full bg-white border border-zinc-300 rounded-lg px-3 py-2 outline-none focus:border-emerald-500" />
               <div className="flex gap-2 pt-2">
                 <button type="submit" className="flex-1 bg-emerald-500 text-white py-2 rounded-lg font-medium hover:bg-emerald-600 text-sm md:text-base">
@@ -317,7 +332,7 @@ export const Staff: React.FC = () => {
                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                     <div>
                       <h4 className="font-bold text-zinc-900">{member.name}</h4>
-                      <p className="text-sm text-zinc-500">{member.role} • {(member.hourly_rate).toFixed(2)} DH/hr</p>
+                      <p className="text-sm text-zinc-500">{member.role}</p>
                     </div>
                     <div className="flex items-center gap-2">
                       {activeShift ? (
@@ -354,8 +369,8 @@ export const Staff: React.FC = () => {
                   
                   <div className="grid grid-cols-2 gap-2 pt-2 border-t border-zinc-200">
                     <div>
-                      <p className="text-[10px] uppercase tracking-wider text-zinc-500 font-bold">Earned</p>
-                      <p className="text-sm font-bold text-zinc-900">DH{summary.totalEarned.toFixed(2)}</p>
+                      <p className="text-[10px] uppercase tracking-wider text-zinc-500 font-bold">Revenue</p>
+                      <p className="text-sm font-bold text-zinc-900">DH{summary.totalRevenue.toFixed(2)}</p>
                     </div>
                     <div>
                       <p className="text-[10px] uppercase tracking-wider text-zinc-500 font-bold">Paid/Adv.</p>
@@ -377,12 +392,12 @@ export const Staff: React.FC = () => {
         </div>
 
         <div className="lg:col-span-2 space-y-6 md:space-y-8">
-          {/* Advances & Salaries */}
+          {/* Payments */}
           <div className="bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-zinc-100">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-lg md:text-xl font-bold text-zinc-900 flex items-center gap-2">
                 <Wallet size={24} className="text-emerald-500" />
-                Advances & Salaries
+                Payments
               </h2>
             </div>
 
@@ -439,7 +454,7 @@ export const Staff: React.FC = () => {
           <div className="bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-zinc-100">
             <h2 className="text-lg md:text-xl font-bold text-zinc-900 mb-6 flex items-center gap-2">
               <Clock size={24} className="text-emerald-500" />
-              Shift History & Hourly Pay
+              Shift History & Revenue
             </h2>
 
             <div className="overflow-x-auto -mx-5 md:mx-0">
@@ -451,7 +466,7 @@ export const Staff: React.FC = () => {
                     <th className="pb-3 font-semibold">Clock In</th>
                     <th className="pb-3 font-semibold">Clock Out</th>
                     <th className="pb-3 font-semibold text-right">Expenses</th>
-                    <th className="pb-3 font-semibold text-right pr-5 md:pr-0">Earned</th>
+                    <th className="pb-3 font-semibold text-right pr-5 md:pr-0">Revenue</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-100">
@@ -487,7 +502,7 @@ export const Staff: React.FC = () => {
                       </td>
                       <td className="py-4 text-right font-bold pr-5 md:pr-0">
                         <div className="flex items-center justify-end gap-3">
-                          {shift.end_time ? `DH${calculatePay(shift).toFixed(2)}` : '-'}
+                          DH{(shiftRevenue[shift.id] || 0).toFixed(2)}
                           <button 
                             onClick={() => handlePrintShiftReport(shift)}
                             className="p-2 text-zinc-400 hover:text-emerald-500 hover:bg-emerald-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"

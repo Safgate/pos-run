@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAppStore } from '../store';
 import { History, Search, Calendar, ChevronDown, ChevronUp, CheckCircle, XCircle, Clock, Trash2, Filter, DollarSign, Printer, User, Key, ShieldCheck, Settings as SettingsIcon, Save } from 'lucide-react';
-import { format, isWithinInterval, parseISO, startOfDay, endOfDay } from 'date-fns';
+import { format, parseISO, startOfDay, endOfDay } from 'date-fns';
 
 export const Settings: React.FC = () => {
   const { tables, shifts, staff, currentUser, settings, updateSettings } = useAppStore();
@@ -10,6 +10,11 @@ export const Settings: React.FC = () => {
   const [expandedOrder, setExpandedOrder] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [confirmDelete, setConfirmDelete] = useState<{ type: 'order' | 'item', orderId: number, itemId?: number } | null>(null);
+  const [showClearHistoryModal, setShowClearHistoryModal] = useState(false);
+  const [clearHistoryText, setClearHistoryText] = useState('');
+  const [clearHistoryPin, setClearHistoryPin] = useState('');
+  const [clearHistoryAcknowledge, setClearHistoryAcknowledge] = useState(false);
+  const [isClearingHistory, setIsClearingHistory] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   
   // Receipt Settings State
@@ -78,6 +83,49 @@ export const Settings: React.FC = () => {
     }
   };
 
+  const handleClearHistory = async () => {
+    if (clearHistoryText !== 'CLEAR HISTORY') {
+      setSettingsMessage({ text: 'Type CLEAR HISTORY exactly to continue', type: 'error' });
+      return;
+    }
+    if (!clearHistoryAcknowledge) {
+      setSettingsMessage({ text: 'Please acknowledge the safety checkbox', type: 'error' });
+      return;
+    }
+    if (currentUser?.pin && clearHistoryPin !== currentUser.pin) {
+      setSettingsMessage({ text: 'Invalid PIN confirmation', type: 'error' });
+      return;
+    }
+
+    setIsClearingHistory(true);
+    try {
+      const res = await fetch('/api/orders/history', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          confirmText: clearHistoryText,
+          acknowledged: clearHistoryAcknowledge
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setSettingsMessage({ text: data.error || 'Failed to clear history', type: 'error' });
+        return;
+      }
+      setSettingsMessage({ text: `History cleared (${data.deleted_orders || 0} orders)`, type: 'success' });
+      setShowClearHistoryModal(false);
+      setClearHistoryText('');
+      setClearHistoryPin('');
+      setClearHistoryAcknowledge(false);
+      fetchOrderHistory();
+    } catch (error) {
+      setSettingsMessage({ text: 'Network error while clearing history', type: 'error' });
+    } finally {
+      setIsClearingHistory(false);
+      setTimeout(() => setSettingsMessage(null), 3000);
+    }
+  };
+
   const filteredOrders = orderHistory.filter(order => {
     const matchesSearch = order.id.toString().includes(searchQuery) ||
       (order.table_id ? tables.find(t => t.id === order.table_id)?.name.toLowerCase().includes(searchQuery.toLowerCase()) : 'takeaway'.includes(searchQuery.toLowerCase()));
@@ -92,21 +140,23 @@ export const Settings: React.FC = () => {
     return matchesSearch && matchesDate && matchesTotal;
   });
 
-  const printShiftReport = (shift: any) => {
+  const printShiftReport = async (shift: any) => {
     const serverName = staff.find(s => s.id === shift.staff_id)?.name || shift.staff_name || 'Unknown';
     const startTime = format(new Date(shift.start_time), 'MMM dd, yyyy HH:mm:ss');
     const endTime = shift.end_time ? format(new Date(shift.end_time), 'MMM dd, yyyy HH:mm:ss') : 'Ongoing';
-    
-    // Calculate total sales for this shift
-    const shiftOrders = orderHistory.filter(order => {
-      const orderTime = new Date(order.created_at).getTime();
-      const shiftStart = new Date(shift.start_time).getTime();
-      const shiftEnd = shift.end_time ? new Date(shift.end_time).getTime() : Date.now();
-      return orderTime >= shiftStart && orderTime <= shiftEnd;
-    });
-    
-    const totalSales = shiftOrders.reduce((sum, order) => sum + order.total, 0);
-    const totalOrders = shiftOrders.length;
+
+    let totalSales = 0;
+    let totalOrders = 0;
+    try {
+      const response = await fetch(`/api/shifts/${shift.id}/orders`);
+      if (!response.ok) throw new Error('Failed to fetch shift orders');
+      const shiftOrders = await response.json();
+      totalSales = shiftOrders.reduce((sum: number, order: any) => sum + Number(order.total || 0), 0);
+      totalOrders = shiftOrders.length;
+    } catch (error) {
+      console.error('Failed to build shift report:', error);
+      return;
+    }
 
     const html = `
       <html>
@@ -114,7 +164,7 @@ export const Settings: React.FC = () => {
           <title>Shift Report - ${serverName}</title>
           <style>
             @page { size: 80mm auto; margin: 0; }
-            body { font-family: monospace; padding: 10px; width: 80mm; margin: 0; font-size: 12px; }
+            body { font-family: monospace; padding: 10px; width: 80mm; margin: 0; font-size: 12px; zoom: 2; }
             .text-center { text-align: center; }
             .text-right { text-align: right; }
             .mb-2 { margin-bottom: 4px; }
@@ -251,6 +301,13 @@ export const Settings: React.FC = () => {
               >
                 <Filter size={18} />
                 <span>Filters</span>
+              </button>
+              <button
+                onClick={() => setShowClearHistoryModal(true)}
+                className="p-2 rounded-xl border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 transition-all flex items-center gap-2 text-sm font-medium"
+              >
+                <Trash2 size={18} />
+                <span>Clear History</span>
               </button>
             </div>
           </div>
@@ -653,45 +710,40 @@ export const Settings: React.FC = () => {
               </div>
             </div>
 
-            <div className="bg-zinc-50 rounded-2xl p-6 border border-zinc-200">
+              <div className="bg-zinc-50 rounded-2xl p-6 border border-zinc-200">
               <h3 className="text-sm font-bold text-zinc-500 uppercase tracking-wider mb-4">Live Preview</h3>
-              <div className="bg-white shadow-lg rounded-sm p-6 mx-auto max-w-[280px] font-mono text-[10px] text-zinc-900 space-y-2 border border-zinc-100">
-                <div className="text-center space-y-1 mb-4">
-                  <div className="font-black text-xs uppercase tracking-widest">{receiptSettings.receipt_name || 'BUSINESS NAME'}</div>
-                  <div>{receiptSettings.receipt_address || 'Address Line'}</div>
-                  <div>Tel: {receiptSettings.receipt_phone || 'Phone Number'}</div>
-                  <div className="border-b border-dashed border-zinc-300 py-1"></div>
-                  <div className="font-bold text-xs pt-1">ORDER #1</div>
-                  <div className="text-[8px] text-zinc-400">04/05/2026 13:15:27</div>
-                  <div className="text-[8px]">Server: Alice</div>
-                  <div className="bg-zinc-900 text-white py-1 px-2 mt-2 inline-block font-bold">TABLE 4</div>
+              <div className="bg-white shadow-lg rounded-sm p-5 mx-auto max-w-[280px] text-[10px] text-zinc-900 border border-zinc-100">
+                <div className="text-center space-y-1 mb-3">
+                  <div className="font-sans font-bold text-xs leading-tight">{receiptSettings.receipt_name || 'Business name'}</div>
+                  <div className="font-mono text-[9px]">Order #1</div>
+                  <div className="font-mono text-[9px] text-zinc-600">08/04/2026 12:52:41</div>
+                  <div className="font-sans font-bold text-[10px] pt-1">Takeaway</div>
                 </div>
-                
-                <div className="border-b border-dashed border-zinc-300 pb-2">
-                  <div className="flex justify-between">
-                    <span>2x Espresso</span>
-                    <span>5.00 DH</span>
+                <div className="font-mono text-[9px] space-y-1 mb-2">
+                  <div className="flex justify-between gap-2">
+                    <span className="min-w-0">2x Espresso</span>
+                    <span className="shrink-0">5.00 DH</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span>1x Croissant</span>
-                    <span>3.00 DH</span>
+                  <div className="flex justify-between gap-2">
+                    <span className="min-w-0">1x Croissant</span>
+                    <span className="shrink-0">3.00 DH</span>
                   </div>
                 </div>
-
-                <div className="flex justify-between font-bold text-xs pt-1">
+                <div className="border-t border-dashed border-zinc-900 my-2" />
+                <div className="flex justify-between font-sans font-bold text-[10px]">
                   <span>TOTAL</span>
                   <span>8.00 DH</span>
                 </div>
-
-                <div className="text-center pt-4 space-y-2">
-                  <div className="border border-zinc-900 p-2 text-[8px]">
-                    <div className="font-bold">WIFI ACCESS</div>
-                    <div>Network: {receiptSettings.receipt_wifi_network || '---'}</div>
-                    <div>Password: {receiptSettings.receipt_wifi_password || '---'}</div>
+                <div className="border-t border-dashed border-zinc-900 my-2" />
+                {(receiptSettings.receipt_wifi_network?.trim() || receiptSettings.receipt_wifi_password?.trim()) ? (
+                  <div className="text-[8px] font-mono text-left space-y-0.5 mb-2 pt-1">
+                    <div className="font-sans font-bold text-center text-[9px] mb-1 tracking-wide">WIFI</div>
+                    <div>Network: {receiptSettings.receipt_wifi_network?.trim() || '—'}</div>
+                    <div>Password: {receiptSettings.receipt_wifi_password?.trim() || '—'}</div>
                   </div>
-                  <div className="text-[8px] italic whitespace-pre-line">
-                    {receiptSettings.receipt_footer || 'Thank you for your visit!'}
-                  </div>
+                ) : null}
+                <div className="text-center font-sans text-[9px] pt-1">
+                  {(receiptSettings.receipt_footer || 'Thank you for your visit!').split('\n')[0]}
                 </div>
               </div>
             </div>
@@ -730,6 +782,63 @@ export const Settings: React.FC = () => {
                 className="flex-1 py-2 bg-red-500 text-white rounded-xl font-bold hover:bg-red-600 transition-all shadow-lg shadow-red-500/20"
               >
                 Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Clear History Safety Modal */}
+      {showClearHistoryModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl animate-in fade-in zoom-in duration-200">
+            <h3 className="text-xl font-bold text-zinc-900 mb-2">Clear Order History</h3>
+            <p className="text-zinc-500 mb-4">
+              This clears historical orders only (`completed` and `cancelled`) and keeps active orders safe.
+            </p>
+            <div className="space-y-3">
+              <input
+                type="text"
+                value={clearHistoryText}
+                onChange={(e) => setClearHistoryText(e.target.value)}
+                placeholder='Type "CLEAR HISTORY"'
+                className="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-lg outline-none focus:border-red-400"
+              />
+              <input
+                type="password"
+                value={clearHistoryPin}
+                onChange={(e) => setClearHistoryPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                placeholder="Enter your 4-digit PIN"
+                className="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-lg outline-none focus:border-red-400"
+              />
+              <label className="flex items-start gap-2 text-sm text-zinc-600">
+                <input
+                  type="checkbox"
+                  checked={clearHistoryAcknowledge}
+                  onChange={(e) => setClearHistoryAcknowledge(e.target.checked)}
+                  className="mt-0.5"
+                />
+                <span>I understand this operation cannot be undone.</span>
+              </label>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowClearHistoryModal(false);
+                  setClearHistoryText('');
+                  setClearHistoryPin('');
+                  setClearHistoryAcknowledge(false);
+                }}
+                className="flex-1 py-2 bg-zinc-100 text-zinc-600 rounded-xl font-bold hover:bg-zinc-200 transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleClearHistory}
+                disabled={isClearingHistory}
+                className="flex-1 py-2 bg-red-500 text-white rounded-xl font-bold hover:bg-red-600 transition-all disabled:opacity-60"
+              >
+                {isClearingHistory ? 'Clearing...' : 'Clear History'}
               </button>
             </div>
           </div>

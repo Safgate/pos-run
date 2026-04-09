@@ -3,6 +3,28 @@ import { useAppStore } from '../store';
 import { MenuItem, OrderItem, Table } from '../types';
 import { ShoppingCart, Plus, Minus, Trash2, CheckCircle, XCircle, Coffee, Search } from 'lucide-react';
 
+/** Base roll width (mm) before width multiplier. */
+function receiptBasePaperMm(): number {
+  const raw = import.meta.env.VITE_RECEIPT_PAPER_MM;
+  if (raw != null && String(raw).trim() !== '') {
+    const n = Number(String(raw).trim());
+    if (Number.isFinite(n) && n >= 58 && n <= 120) return n;
+  }
+  return 112;
+}
+
+/** Final @page width = base × multiplier (default 2 = 200% width), clamped for sane print. */
+function receiptPaperWidthMm(): number {
+  const base = receiptBasePaperMm();
+  const rawMult = import.meta.env.VITE_RECEIPT_WIDTH_MULTIPLIER;
+  let mult = 2;
+  if (rawMult != null && String(rawMult).trim() !== '') {
+    const m = Number(String(rawMult).trim());
+    if (Number.isFinite(m) && m >= 1 && m <= 4) mult = m;
+  }
+  return Math.min(250, Math.max(58, Math.round(base * mult)));
+}
+
 export const POS: React.FC = () => {
   const { categories, menuItems, tables, currentUser, settings } = useAppStore();
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
@@ -51,101 +73,211 @@ export const POS: React.FC = () => {
   const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
   const printReceipt = (orderData: any, orderNumber: number) => {
+    const paperMm = receiptPaperWidthMm();
+    const paper = `${paperMm}mm`;
+
+    const esc = (s: string) =>
+      String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+
     const tableName = selectedTable 
       ? tables.find(t => t.id === selectedTable)?.name 
       : 'Takeaway';
 
-    const date = new Date().toLocaleString();
+    const now = new Date();
+    const pad2 = (n: number) => String(n).padStart(2, '0');
+    const dateFormatted = `${pad2(now.getDate())}/${pad2(now.getMonth() + 1)}/${now.getFullYear()} ${pad2(now.getHours())}:${pad2(now.getMinutes())}:${pad2(now.getSeconds())}`;
 
-    const receiptName = settings.receipt_name || 'POS RUN';
-    const receiptAddress = settings.receipt_address || '123 Coffee Street';
-    const receiptPhone = settings.receipt_phone || '+123 456 789';
-    const wifiNetwork = settings.receipt_wifi_network || 'POSRun_Guest';
-    const wifiPassword = settings.receipt_wifi_password || 'coffee2024';
-    const receiptFooter = settings.receipt_footer || 'Thank you for choosing POS Run!\nFollow us @posrun';
+    const receiptName = esc(settings.receipt_name || 'POS RUN');
+    const receiptFooter = esc(
+      (settings.receipt_footer || 'Thank you for your visit!').split('\n')[0].trim() || 'Thank you for your visit!'
+    );
+    const tableNameEsc = esc(tableName);
+    const wifiNetworkRaw = String(settings.receipt_wifi_network ?? '').trim();
+    const wifiPasswordRaw = String(settings.receipt_wifi_password ?? '').trim();
+    const showWifi = wifiNetworkRaw.length > 0 || wifiPasswordRaw.length > 0;
+    const wifiNetwork = esc(wifiNetworkRaw || '—');
+    const wifiPassword = esc(wifiPasswordRaw || '—');
 
     const styles = `
-      /* 72mm roll width; auto height avoids drivers shrinking content to fit a short page */
-      @page { size: 72mm auto; margin: 0; }
-      html { -webkit-text-size-adjust: 100%; }
-      html, body { margin: 0; padding: 0; }
-      body {
-        font-family: 'Courier New', Courier, monospace;
-        box-sizing: border-box;
-        width: 72mm;
-        max-width: 72mm;
-        margin: 0 auto;
-        padding: 4mm 3mm;
-        font-size: 14pt;
-        line-height: 1.35;
-        color: #000;
+      /* Thermal: reference layout — sans title, monospace body, dashed rules around total */
+      @page { size: ${paper} auto; margin: 0; }
+      * { box-sizing: border-box; }
+      html {
+        -webkit-text-size-adjust: 100%;
+        width: ${paper};
+        max-width: ${paper};
+        margin: 0;
+        padding: 0;
       }
-      .text-center { text-align: center; }
-      .text-right { text-align: right; }
-      .mb-1 { margin-bottom: 3pt; }
-      .mb-2 { margin-bottom: 6pt; }
-      .mb-4 { margin-bottom: 10pt; }
-      .mt-4 { margin-top: 10pt; }
-      .flex { display: flex; justify-content: space-between; gap: 4pt; }
-      .border-b { border-bottom: 1px dashed #000; padding-bottom: 8pt; margin-bottom: 8pt; }
-      .bold { font-weight: bold; }
-      .header { font-size: 20pt; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5pt; line-height: 1.15; }
-      .sub { font-size: 12pt; color: #333; }
-      .order-no { font-size: 17pt; }
-      .table-pill { font-size: 15pt; padding: 5pt 6pt; }
-      .line-row { font-size: 14pt; }
-      .total-row { font-size: 17pt; margin-top: 8pt; }
-      .wifi-box { border: 1px solid #000; padding: 8pt; margin-top: 12pt; font-size: 12pt; }
-      .footer-note { font-size: 11pt; font-style: italic; }
-      .whitespace-pre { white-space: pre-line; }
+      html, body {
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        width: ${paper};
+        max-width: ${paper};
+        margin: 0 auto;
+        font-family: ui-monospace, 'Liberation Mono', 'DejaVu Sans Mono', 'Courier New', monospace;
+        color: #000;
+        background: #fff;
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
+      }
+      .receipt {
+        width: 100%;
+        max-width: ${paper};
+        margin: 0;
+        padding: 3mm 3mm;
+        font-size: 26px;
+        line-height: 1.45;
+        font-variant-numeric: tabular-nums;
+      }
+      .header-block {
+        text-align: center;
+        margin-bottom: 1em;
+      }
+      .store-name {
+        font-family: system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        font-size: 1.42em;
+        font-weight: 700;
+        line-height: 1.2;
+        margin: 0 0 0.55em 0;
+      }
+      .order-line,
+      .date-line {
+        font-family: ui-monospace, 'Liberation Mono', 'DejaVu Sans Mono', 'Courier New', monospace;
+        font-size: 0.98em;
+        font-weight: 400;
+        margin: 0.35em 0;
+      }
+      .order-type {
+        font-family: system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        font-weight: 700;
+        font-size: 1.05em;
+        margin: 0.75em 0 0 0;
+      }
+      .items {
+        margin: 0.25em 0 0 0;
+      }
+      .line {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 10px;
+        margin-bottom: 0.48em;
+        font-family: ui-monospace, 'Liberation Mono', 'DejaVu Sans Mono', 'Courier New', monospace;
+        font-size: 0.98em;
+      }
+      .line > div:first-child {
+        flex: 1;
+        min-width: 0;
+        overflow-wrap: anywhere;
+        word-break: normal;
+        text-align: left;
+      }
+      .line > div:last-child {
+        flex-shrink: 0;
+        white-space: nowrap;
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+      .dash-rule {
+        border: none;
+        border-top: 1px dashed #000;
+        margin: 0.65em 0;
+        height: 0;
+      }
+      .total-line {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        font-family: system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        font-weight: 700;
+        font-size: 1.12em;
+        margin: 0.15em 0;
+      }
+      .total-line span:last-child {
+        font-variant-numeric: tabular-nums;
+      }
+      .wifi-block {
+        padding: 0.5em 0 0 0;
+        margin: 0.85em 0 0 0;
+        text-align: center;
+        font-size: 0.92em;
+        line-height: 1.5;
+      }
+      .wifi-title {
+        font-family: system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        font-weight: 700;
+        margin: 0 0 0.45em 0;
+        letter-spacing: 0.06em;
+      }
+      .wifi-line {
+        font-family: ui-monospace, 'Liberation Mono', 'DejaVu Sans Mono', 'Courier New', monospace;
+        text-align: left;
+        margin: 0.25em 0;
+      }
+      .footer-msg {
+        text-align: center;
+        font-family: system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        font-size: 0.95em;
+        font-weight: 400;
+        margin-top: 1em;
+        line-height: 1.4;
+      }
       @media print {
-        @page { margin: 0; size: 72mm auto; }
+        @page { margin: 0; size: ${paper} auto; }
         html, body {
-          width: 72mm !important;
-          max-width: 72mm !important;
+          width: ${paper} !important;
+          max-width: ${paper} !important;
           margin: 0 !important;
+          padding: 0 !important;
           transform: none !important;
-          zoom: 1 !important;
         }
         body {
           print-color-adjust: exact;
           -webkit-print-color-adjust: exact;
         }
+        .receipt { padding: 2.5mm 3mm; }
       }
     `;
 
     const bodyHtml = `
-      <div class="text-center mb-4">
-        <div class="header mb-1">${receiptName}</div>
-        <div class="mb-1 sub">${receiptAddress}</div>
-        <div class="mb-2 sub">Tel: ${receiptPhone}</div>
-        <div class="border-b"></div>
-        <div class="bold order-no">ORDER #${orderNumber}</div>
-        <div class="sub" style="color:#666;">${date}</div>
-        ${currentUser ? `<div class="sub">Server: ${currentUser.name}</div>` : ''}
-        <div class="bold mt-4 table-pill" style="background: #000; color: #fff;">${tableName}</div>
-      </div>
-      <div class="border-b">
-        ${orderData.items.map((item: any) => `
-          <div class="flex mb-1 line-row">
-            <div>${item.quantity}x ${item.name}</div>
-            <div>DH${(item.price * item.quantity).toFixed(2)}</div>
-          </div>
-        `).join('')}
-      </div>
-      <div class="flex bold total-row">
-        <div>TOTAL</div>
-        <div>DH${orderData.total.toFixed(2)}</div>
-      </div>
-      <div class="text-center mt-4">
-        <div class="wifi-box">
-          <div class="bold">WIFI ACCESS</div>
-          <div>Network: ${wifiNetwork}</div>
-          <div>Password: ${wifiPassword}</div>
+      <div class="receipt">
+        <div class="header-block">
+          <div class="store-name">${receiptName}</div>
+          <div class="order-line">Order #${orderNumber}</div>
+          <div class="date-line">${esc(dateFormatted)}</div>
+          <div class="order-type">${tableNameEsc}</div>
         </div>
-      </div>
-      <div class="text-center mt-4 whitespace-pre footer-note">
-        ${receiptFooter}
+        <div class="items">
+          ${orderData.items.map((item: any) => `
+            <div class="line">
+              <div>${item.quantity}x ${esc(String(item.name ?? ''))}</div>
+              <div>${(item.price * item.quantity).toFixed(2)} DH</div>
+            </div>
+          `).join('')}
+        </div>
+        <hr class="dash-rule" />
+        <div class="total-line">
+          <span>TOTAL</span>
+          <span>${orderData.total.toFixed(2)} DH</span>
+        </div>
+        <hr class="dash-rule" />
+        ${
+          showWifi
+            ? `<div class="wifi-block">
+          <div class="wifi-title">WIFI</div>
+          <div class="wifi-line">Network: ${wifiNetwork}</div>
+          <div class="wifi-line">Password: ${wifiPassword}</div>
+        </div>`
+            : ''
+        }
+        <div class="footer-msg">${receiptFooter}</div>
       </div>
     `;
 
@@ -199,7 +331,7 @@ export const POS: React.FC = () => {
     const iframe = document.createElement('iframe');
     iframe.setAttribute(
       'style',
-      'position:fixed;left:-9999px;top:0;width:72mm;min-height:120mm;height:auto;border:0;opacity:0;pointer-events:none;z-index:-1'
+      `position:fixed;left:-9999px;top:0;width:${paper};min-height:120mm;height:auto;border:0;opacity:0;pointer-events:none;z-index:-1`
     );
     document.body.appendChild(iframe);
 

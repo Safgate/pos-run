@@ -1,13 +1,18 @@
+import path from 'path';
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 
-dotenv.config();
+const root = process.cwd();
+dotenv.config({ path: path.join(root, '.env') });
+dotenv.config({ path: path.join(root, '.env.local'), override: true });
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseUrl = process.env.SUPABASE_URL?.trim();
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
 
 if (!supabaseUrl || !supabaseKey) {
-  console.warn('Supabase URL or Service Role Key is missing. Check your .env file.');
+  throw new Error(
+    'Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY. Set them in .env or .env.local in the project root (copy from .env.example).',
+  );
 }
 
-export const supabase = createClient(supabaseUrl || '', supabaseKey || '');
+export const supabase = createClient(supabaseUrl, supabaseKey);
