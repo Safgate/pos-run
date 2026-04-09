@@ -133,8 +133,9 @@ export const POS: React.FC = () => {
         margin: 0;
         padding: 2mm 1mm;
         font-size: 16px;
-        line-height: 1.45;
+        line-height: 1.35;
         font-variant-numeric: tabular-nums;
+        letter-spacing: 0.01em;
       }
       .header-block {
         text-align: center;
@@ -166,24 +167,27 @@ export const POS: React.FC = () => {
       .line {
         display: flex;
         justify-content: space-between;
-        align-items: flex-start;
-        gap: 10px;
-        margin-bottom: 0.48em;
+        align-items: baseline;
+        gap: 8px;
+        margin-bottom: 0.38em;
         font-family: ui-monospace, 'Liberation Mono', 'DejaVu Sans Mono', 'Courier New', monospace;
-        font-size: 0.98em;
+        font-size: 1em;
       }
       .line > div:first-child {
         flex: 1;
         min-width: 0;
-        overflow-wrap: anywhere;
-        word-break: normal;
+        overflow-wrap: break-word;
+        word-break: break-word;
         text-align: left;
+        padding-right: 0.25em;
       }
       .line > div:last-child {
         flex-shrink: 0;
+        min-width: 6.7em;
         white-space: nowrap;
         text-align: right;
         font-variant-numeric: tabular-nums;
+        font-weight: 700;
       }
       .dash-rule {
         border: none;
@@ -197,11 +201,13 @@ export const POS: React.FC = () => {
         align-items: baseline;
         font-family: system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
         font-weight: 700;
-        font-size: 1.12em;
+        font-size: 1.14em;
         margin: 0.15em 0;
       }
       .total-line span:last-child {
         font-variant-numeric: tabular-nums;
+        min-width: 6.7em;
+        text-align: right;
       }
       .wifi-block {
         padding: 0.5em 0 0 0;
@@ -220,6 +226,7 @@ export const POS: React.FC = () => {
         font-family: ui-monospace, 'Liberation Mono', 'DejaVu Sans Mono', 'Courier New', monospace;
         text-align: left;
         margin: 0.25em 0;
+        overflow-wrap: anywhere;
       }
       .footer-msg {
         text-align: center;
