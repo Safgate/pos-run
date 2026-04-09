@@ -120,7 +120,7 @@ export const POS: React.FC = () => {
       body {
         width: ${paper};
         max-width: ${paper};
-        margin: 0 auto;
+        margin: 0;
         font-family: ui-monospace, 'Liberation Mono', 'DejaVu Sans Mono', 'Courier New', monospace;
         color: #000;
         background: #fff;
@@ -131,7 +131,7 @@ export const POS: React.FC = () => {
         width: 100%;
         max-width: ${paper};
         margin: 0;
-        padding: 3mm 3mm;
+        padding: 2mm 1mm;
         font-size: 16px;
         line-height: 1.45;
         font-variant-numeric: tabular-nums;
@@ -242,7 +242,7 @@ export const POS: React.FC = () => {
           print-color-adjust: exact;
           -webkit-print-color-adjust: exact;
         }
-        .receipt { padding: 2.5mm 3mm; }
+        .receipt { padding: 2mm 1mm; }
       }
     `;
 
