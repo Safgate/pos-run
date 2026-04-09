@@ -25,6 +25,16 @@ function receiptPaperWidthMm(): number {
   return Math.min(250, Math.max(58, Math.round(base * mult)));
 }
 
+/** Thermal page length in mm (default 2000) so tall receipts can complete before cutter fires. */
+function receiptPageLengthMm(): number {
+  const raw = import.meta.env.VITE_RECEIPT_PAGE_LENGTH_MM;
+  if (raw != null && String(raw).trim() !== '') {
+    const n = Number(String(raw).trim());
+    if (Number.isFinite(n) && n >= 200 && n <= 5000) return Math.round(n);
+  }
+  return 2000;
+}
+
 export const POS: React.FC = () => {
   const { categories, menuItems, tables, currentUser, settings } = useAppStore();
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
@@ -74,7 +84,9 @@ export const POS: React.FC = () => {
 
   const printReceipt = (orderData: any, orderNumber: number) => {
     const paperMm = receiptPaperWidthMm();
+    const pageLengthMm = receiptPageLengthMm();
     const paper = `${paperMm}mm`;
+    const pageLength = `${pageLengthMm}mm`;
 
     const esc = (s: string) =>
       String(s)
@@ -104,7 +116,7 @@ export const POS: React.FC = () => {
 
     const styles = `
       /* Thermal: reference layout — sans title, monospace body, dashed rules around total */
-      @page { size: ${paper} auto; margin: 0; }
+      @page { size: ${paper} ${pageLength}; margin: 0; }
       * { box-sizing: border-box; }
       html {
         -webkit-text-size-adjust: 100%;
@@ -133,9 +145,8 @@ export const POS: React.FC = () => {
         margin: 0;
         padding: 2mm 1mm;
         font-size: 16px;
-        line-height: 1.35;
+        line-height: 1.45;
         font-variant-numeric: tabular-nums;
-        letter-spacing: 0.01em;
       }
       .header-block {
         text-align: center;
@@ -167,27 +178,24 @@ export const POS: React.FC = () => {
       .line {
         display: flex;
         justify-content: space-between;
-        align-items: baseline;
-        gap: 8px;
-        margin-bottom: 0.38em;
+        align-items: flex-start;
+        gap: 10px;
+        margin-bottom: 0.48em;
         font-family: ui-monospace, 'Liberation Mono', 'DejaVu Sans Mono', 'Courier New', monospace;
-        font-size: 1em;
+        font-size: 0.98em;
       }
       .line > div:first-child {
         flex: 1;
         min-width: 0;
-        overflow-wrap: break-word;
-        word-break: break-word;
+        overflow-wrap: anywhere;
+        word-break: normal;
         text-align: left;
-        padding-right: 0.25em;
       }
       .line > div:last-child {
         flex-shrink: 0;
-        min-width: 6.7em;
         white-space: nowrap;
         text-align: right;
         font-variant-numeric: tabular-nums;
-        font-weight: 700;
       }
       .dash-rule {
         border: none;
@@ -201,13 +209,11 @@ export const POS: React.FC = () => {
         align-items: baseline;
         font-family: system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
         font-weight: 700;
-        font-size: 1.14em;
+        font-size: 1.12em;
         margin: 0.15em 0;
       }
       .total-line span:last-child {
         font-variant-numeric: tabular-nums;
-        min-width: 6.7em;
-        text-align: right;
       }
       .wifi-block {
         padding: 0.5em 0 0 0;
@@ -226,7 +232,6 @@ export const POS: React.FC = () => {
         font-family: ui-monospace, 'Liberation Mono', 'DejaVu Sans Mono', 'Courier New', monospace;
         text-align: left;
         margin: 0.25em 0;
-        overflow-wrap: anywhere;
       }
       .footer-msg {
         text-align: center;
@@ -237,7 +242,7 @@ export const POS: React.FC = () => {
         line-height: 1.4;
       }
       @media print {
-        @page { margin: 0; size: ${paper} auto; }
+        @page { margin: 0; size: ${paper} ${pageLength}; }
         html, body {
           width: ${paper} !important;
           max-width: ${paper} !important;

@@ -183,16 +183,14 @@ function printReceiptHtml(html) {
     });
 
     win.webContents.once('did-finish-load', () => {
-      /* Default to 80% (about 20% bigger than 66%); override with RECEIPT_PRINT_SCALE in .env */
-      const scale = parseInt(process.env.RECEIPT_PRINT_SCALE || '80', 10);
+      /* Match browser print: 100% scale. Lower RECEIPT_PRINT_SCALE (e.g. 66) only if a driver shrinks. */
+      const scale = parseInt(process.env.RECEIPT_PRINT_SCALE || '100', 10);
       const safeScale =
-        Number.isFinite(scale) && scale >= 10 && scale <= 200 ? scale : 80;
+        Number.isFinite(scale) && scale >= 10 && scale <= 200 ? scale : 100;
       const opts = {
         silent: true,
         printBackground: true,
-        // 100 = 100% actual size (no “fit to page” shrink)
         scaleFactor: safeScale,
-        dpi: { horizontal: 203, vertical: 203 },
         margins: { marginType: 'none' },
       };
       const name = process.env.RECEIPT_PRINTER_NAME;
