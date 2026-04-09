@@ -10,14 +10,14 @@ function receiptBasePaperMm(): number {
     const n = Number(String(raw).trim());
     if (Number.isFinite(n) && n >= 58 && n <= 120) return n;
   }
-  return 112;
+  return 80;
 }
 
-/** Final @page width = base × multiplier (default 2 = 200% width), clamped for sane print. */
+/** Final @page width = base × multiplier (default 1 = base width), clamped for sane print. */
 function receiptPaperWidthMm(): number {
   const base = receiptBasePaperMm();
   const rawMult = import.meta.env.VITE_RECEIPT_WIDTH_MULTIPLIER;
-  let mult = 2;
+  let mult = 1;
   if (rawMult != null && String(rawMult).trim() !== '') {
     const m = Number(String(rawMult).trim());
     if (Number.isFinite(m) && m >= 1 && m <= 4) mult = m;
