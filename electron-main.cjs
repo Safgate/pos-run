@@ -158,8 +158,11 @@ function wantEscPosPostCut() {
  */
 function printReceiptHtml(html) {
   return new Promise((resolve) => {
+    /* Explicit size so layout/paint runs before print (hidden default viewport can yield blank output). */
     const win = new BrowserWindow({
       show: false,
+      width: 420,
+      height: 1800,
       webPreferences: {
         sandbox: true,
         nodeIntegration: false,
@@ -201,18 +204,23 @@ function printReceiptHtml(html) {
       const cutPrinter = deviceName || '';
       const doPostCut = wantEscPosPostCut();
 
-      win.webContents.print(opts, (success, failureReason) => {
-        const done = () => {
-          cleanup();
-          if (success) resolve({ success: true });
-          else resolve({ success: false, error: failureReason || 'Print failed' });
-        };
-        if (success && doPostCut) {
-          sendEscPosCutViaLp(cutPrinter).finally(done);
-        } else {
-          done();
-        }
-      });
+      const doPrint = () => {
+        win.webContents.print(opts, (success, failureReason) => {
+          const done = () => {
+            cleanup();
+            if (success) resolve({ success: true });
+            else resolve({ success: false, error: failureReason || 'Print failed' });
+          };
+          if (success && doPostCut) {
+            sendEscPosCutViaLp(cutPrinter).finally(done);
+          } else {
+            done();
+          }
+        });
+      };
+
+      /* Let layout/paint settle; printing immediately on did-finish-load often captures empty/skewed output. */
+      setTimeout(doPrint, 200);
     });
 
     win.loadURL(dataUrl);

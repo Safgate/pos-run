@@ -25,14 +25,18 @@ function receiptPaperWidthMm(): number {
   return Math.min(250, Math.max(58, Math.round(base * mult)));
 }
 
-/** Thermal page length in mm (default 2000) so tall receipts can complete before cutter fires. */
-function receiptPageLengthMm(): number {
+/**
+ * Optional fixed @page height in mm. Leave unset → `auto` (content height) so Chromium does not
+ * shrink the whole receipt to “fit” a multi-metre logical page onto the roll.
+ * Set only if your CUPS/queue needs an explicit media length (e.g. X80MMY2000MM).
+ */
+function receiptPageLengthMm(): number | null {
   const raw = import.meta.env.VITE_RECEIPT_PAGE_LENGTH_MM;
   if (raw != null && String(raw).trim() !== '') {
     const n = Number(String(raw).trim());
     if (Number.isFinite(n) && n >= 200 && n <= 5000) return Math.round(n);
   }
-  return 2000;
+  return null;
 }
 
 export const POS: React.FC = () => {
@@ -86,7 +90,7 @@ export const POS: React.FC = () => {
     const paperMm = receiptPaperWidthMm();
     const pageLengthMm = receiptPageLengthMm();
     const paper = `${paperMm}mm`;
-    const pageLength = `${pageLengthMm}mm`;
+    const pageHeight = pageLengthMm != null ? `${pageLengthMm}mm` : 'auto';
 
     const esc = (s: string) =>
       String(s)
@@ -116,7 +120,7 @@ export const POS: React.FC = () => {
 
     const styles = `
       /* Thermal: reference layout — sans title, monospace body, dashed rules around total */
-      @page { size: ${paper} ${pageLength}; margin: 0; }
+      @page { size: ${paper} ${pageHeight}; margin: 0; }
       * { box-sizing: border-box; }
       html {
         -webkit-text-size-adjust: 100%;
@@ -242,7 +246,7 @@ export const POS: React.FC = () => {
         line-height: 1.4;
       }
       @media print {
-        @page { margin: 0; size: ${paper} ${pageLength}; }
+        @page { margin: 0; size: ${paper} ${pageHeight}; }
         html, body {
           width: ${paper} !important;
           max-width: ${paper} !important;

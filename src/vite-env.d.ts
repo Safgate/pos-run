@@ -4,7 +4,7 @@ interface ImportMetaEnv {
   readonly VITE_RECEIPT_PAPER_MM?: string;
   /** Width multiplier for receipt page (default 1 = base width). */
   readonly VITE_RECEIPT_WIDTH_MULTIPLIER?: string;
-  /** Thermal page length in mm (default 2000) so very tall receipts can print fully. */
+  /** Optional fixed @page height in mm; omit for `auto` (recommended for browser/Electron). */
   readonly VITE_RECEIPT_PAGE_LENGTH_MM?: string;
 }
 
