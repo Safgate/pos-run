@@ -132,7 +132,7 @@ export const POS: React.FC = () => {
         max-width: ${paper};
         margin: 0;
         padding: 3mm 3mm;
-        font-size: 26px;
+        font-size: 16px;
         line-height: 1.45;
         font-variant-numeric: tabular-nums;
       }
