@@ -183,10 +183,10 @@ function printReceiptHtml(html) {
     });
 
     win.webContents.once('did-finish-load', () => {
-      /* 100%: normal size; set higher/lower in .env if needed */
-      const scale = parseInt(process.env.RECEIPT_PRINT_SCALE || '100', 10);
+      /* Default to ~33% (about 3x smaller); override with RECEIPT_PRINT_SCALE in .env */
+      const scale = parseInt(process.env.RECEIPT_PRINT_SCALE || '33', 10);
       const safeScale =
-        Number.isFinite(scale) && scale >= 10 && scale <= 200 ? scale : 100;
+        Number.isFinite(scale) && scale >= 10 && scale <= 200 ? scale : 33;
       const opts = {
         silent: true,
         printBackground: true,
