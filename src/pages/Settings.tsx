@@ -164,7 +164,7 @@ export const Settings: React.FC = () => {
           <title>Shift Report - ${serverName}</title>
           <style>
             @page { size: 80mm auto; margin: 0; }
-            body { font-family: monospace; padding: 10px; width: 80mm; margin: 0; font-size: 12px; zoom: 2; }
+            body { font-family: monospace; padding: 10px; width: 80mm; margin: 0; font-size: 12px; zoom: 1.6; }
             .text-center { text-align: center; }
             .text-right { text-align: right; }
             .mb-2 { margin-bottom: 4px; }

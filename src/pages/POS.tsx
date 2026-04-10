@@ -91,6 +91,7 @@ export const POS: React.FC = () => {
     const pageLengthMm = receiptPageLengthMm();
     const paper = `${paperMm}mm`;
     const pageHeight = pageLengthMm != null ? `${pageLengthMm}mm` : 'auto';
+    const receiptScale = 0.8; // 20% smaller
 
     const esc = (s: string) =>
       String(s)
@@ -122,6 +123,7 @@ export const POS: React.FC = () => {
       /* Thermal: reference layout — sans title, monospace body, dashed rules around total */
       @page { size: ${paper} ${pageHeight}; margin: 0; }
       * { box-sizing: border-box; }
+      :root { --receipt-scale: ${receiptScale}; }
       html {
         -webkit-text-size-adjust: 100%;
         width: ${paper};
@@ -147,8 +149,8 @@ export const POS: React.FC = () => {
         width: 100%;
         max-width: ${paper};
         margin: 0;
-        padding: 2mm 1mm;
-        font-size: 16px;
+        padding: calc(2mm * var(--receipt-scale)) calc(1mm * var(--receipt-scale));
+        font-size: calc(16px * var(--receipt-scale));
         line-height: 1.45;
         font-variant-numeric: tabular-nums;
       }
@@ -183,7 +185,7 @@ export const POS: React.FC = () => {
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
-        gap: 10px;
+        gap: calc(10px * var(--receipt-scale));
         margin-bottom: 0.48em;
         font-family: ui-monospace, 'Liberation Mono', 'DejaVu Sans Mono', 'Courier New', monospace;
         font-size: 0.98em;
@@ -258,7 +260,7 @@ export const POS: React.FC = () => {
           print-color-adjust: exact;
           -webkit-print-color-adjust: exact;
         }
-        .receipt { padding: 2mm 1mm; }
+        .receipt { padding: calc(2mm * var(--receipt-scale)) calc(1mm * var(--receipt-scale)); }
       }
     `;
 

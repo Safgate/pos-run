@@ -166,13 +166,13 @@ export const Staff: React.FC = () => {
           <head>
             <title>Shift Report - ${shift.staff_name}</title>
             <style>
-              body { font-family: 'Courier New', Courier, monospace; padding: 20px; max-width: 300px; margin: 0 auto; zoom: 2; }
+              body { font-family: 'Courier New', Courier, monospace; padding: 20px; max-width: 300px; margin: 0 auto; zoom: 1.6; }
               .header { text-align: center; border-bottom: 1px dashed #000; padding-bottom: 10px; margin-bottom: 10px; }
               .row { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 14px; }
               .total { border-top: 1px dashed #000; margin-top: 10px; padding-top: 10px; font-weight: bold; }
               .footer { text-align: center; margin-top: 20px; font-size: 12px; }
               .order-list { font-size: 12px; margin-top: 10px; }
-              @media print { body { padding: 0; zoom: 2; } }
+              @media print { body { padding: 0; zoom: 1.6; } }
             </style>
           </head>
           <body>
