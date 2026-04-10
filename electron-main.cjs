@@ -285,6 +285,21 @@ function startServer() {
     return;
   }
 
+  const missingEnv = [];
+  if (!String(process.env.SUPABASE_URL || '').trim()) missingEnv.push('SUPABASE_URL');
+  if (!String(process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim()) missingEnv.push('SUPABASE_SERVICE_ROLE_KEY');
+  if (missingEnv.length) {
+    const installDir = path.dirname(app.getPath('exe') || process.execPath);
+    const userDataDir = app.getPath('userData');
+    lastServerError =
+      `Missing required environment variable(s): ${missingEnv.join(', ')}.\n` +
+      `Create .env with these keys in one of:\n` +
+      `- ${installDir}\\.env\n` +
+      `- ${userDataDir}\\.env`;
+    console.error(lastServerError);
+    return;
+  }
+
   const serverCandidates = [
     path.join(process.resourcesPath || '', 'app.asar.unpacked', 'dist', 'server.cjs'),
     path.join(appRoot, 'dist', 'server.cjs'),

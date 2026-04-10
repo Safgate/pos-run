@@ -43,8 +43,8 @@ Before launching the shipped app on Windows, create a `.env` file with productio
 
 - For **portable builds**: place `.env` in the same folder as `POS Run-<version>-portable.exe`.
 - For **installed NSIS builds**: place `.env` in:
-  - `%APPDATA%/POS Run/.env`
-  - Example: `C:\Users\<you>\AppData\Roaming\POS Run\.env`
+  - `%APPDATA%/pos-run/.env`
+  - Example: `C:\Users\<you>\AppData\Roaming\pos-run\.env`
 
 You can copy from `.env.example` and set at least:
 
