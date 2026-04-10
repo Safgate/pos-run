@@ -307,7 +307,12 @@ function startServer() {
     /* ignore log file failures */
   }
 
-  serverProcess = spawn(process.execPath, [serverPath], {
+  const nodeHostBinary = app.getPath('exe') || process.execPath;
+  const serverCwd = fs.existsSync(path.dirname(serverPath))
+    ? path.dirname(serverPath)
+    : (process.resourcesPath || path.dirname(nodeHostBinary));
+
+  serverProcess = spawn(nodeHostBinary, [serverPath], {
     env: {
       ...process.env,
       NODE_ENV: 'production',
@@ -315,7 +320,7 @@ function startServer() {
       APP_ROOT: appRoot,
       PORT: String(APP_PORT),
     },
-    cwd: appRoot,
+    cwd: serverCwd,
     shell: false,
   });
 
