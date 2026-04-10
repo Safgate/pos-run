@@ -38,6 +38,8 @@ function waitForHttpOk(url, timeoutMs = 90000, intervalMs = 250) {
 
 let mainWindow;
 let serverProcess;
+let lastServerError = '';
+let serverEverReady = false;
 
 /** Load .env (no dotenv in main). Packaged portable: prefer `.env` next to the .exe. */
 function loadEnvFromFile() {
@@ -92,11 +94,18 @@ const APP_URL = `http://127.0.0.1:${APP_PORT}/`;
 
 function failedToStartHtml(message) {
   const esc = String(message).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+  const details = lastServerError
+    ? `<pre style="white-space:pre-wrap;background:#f5f5f5;padding:12px;border-radius:8px;border:1px solid #ddd;font-size:12px;line-height:1.35;">${String(lastServerError)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/"/g, '&quot;')}</pre>`
+    : '';
   return `data:text/html;charset=utf-8,${encodeURIComponent(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>POS Run</title></head>
 <body style="font-family:system-ui,sans-serif;padding:2rem;max-width:32rem;">
 <h1 style="margin-top:0;">Could not start the app server</h1>
 <p>The embedded server on port ${APP_PORT} did not become ready in time. Check that nothing else uses port ${APP_PORT}, and that antivirus is not blocking the app.</p>
 <p style="color:#666;font-size:13px;">${esc}</p>
+${details}
 </body></html>`)}`;
 }
 
@@ -283,8 +292,19 @@ function startServer() {
   ];
   const serverPath = serverCandidates.find((p) => p && fs.existsSync(p));
   if (!serverPath) {
-    console.error('Could not locate bundled API server entry file (dist/server.cjs).');
+    lastServerError = 'Could not locate bundled API server entry file (dist/server.cjs).';
+    console.error(lastServerError);
     return;
+  }
+
+  let logFile = null;
+  try {
+    logFile = path.join(app.getPath('userData'), 'server.log');
+    fs.mkdirSync(path.dirname(logFile), { recursive: true });
+    fs.appendFileSync(logFile, `\n=== ${new Date().toISOString()} boot ===\n`);
+    fs.appendFileSync(logFile, `serverPath=${serverPath}\nport=${APP_PORT}\n`);
+  } catch {
+    /* ignore log file failures */
   }
 
   serverProcess = spawn(process.execPath, [serverPath], {
@@ -300,20 +320,58 @@ function startServer() {
   });
 
   serverProcess.on('error', (err) => {
-    console.error('Failed to spawn API server:', err);
+    lastServerError = `Failed to spawn API server: ${err.message}`;
+    console.error(lastServerError);
+    if (logFile) {
+      try {
+        fs.appendFileSync(logFile, `${lastServerError}\n`);
+      } catch {
+        /* ignore */
+      }
+    }
   });
   serverProcess.on('exit', (code, signal) => {
-    if (code !== 0 && code !== null) {
-      console.error(`API server exited with code ${code}${signal ? ` signal ${signal}` : ''}`);
+    if (!serverEverReady) {
+      lastServerError = `API server exited before becoming ready (code=${String(code)} signal=${String(signal || '')}).`;
+    } else if (code !== 0 && code !== null) {
+      lastServerError = `API server exited with code ${code}${signal ? ` signal ${signal}` : ''}`;
+    }
+    if (lastServerError) {
+      console.error(lastServerError);
+      if (logFile) {
+        try {
+          fs.appendFileSync(logFile, `${lastServerError}\n`);
+        } catch {
+          /* ignore */
+        }
+      }
     }
   });
 
   serverProcess.stdout.on('data', (data) => {
-    console.log(`Server: ${data}`);
+    const msg = String(data);
+    console.log(`Server: ${msg}`);
+    if (logFile) {
+      try {
+        fs.appendFileSync(logFile, `[stdout] ${msg}`);
+      } catch {
+        /* ignore */
+      }
+    }
   });
 
   serverProcess.stderr.on('data', (data) => {
-    console.error(`Server Error: ${data}`);
+    const msg = String(data);
+    const trimmed = msg.trim();
+    if (trimmed) lastServerError = trimmed.slice(-1200);
+    console.error(`Server Error: ${msg}`);
+    if (logFile) {
+      try {
+        fs.appendFileSync(logFile, `[stderr] ${msg}`);
+      } catch {
+        /* ignore */
+      }
+    }
   });
 }
 
@@ -322,6 +380,7 @@ app.on('ready', async () => {
   let loadUrl = APP_URL;
   try {
     await waitForHttpOk(APP_URL);
+    serverEverReady = true;
   } catch (e) {
     console.error('Embedded server not ready:', e.message);
     loadUrl = failedToStartHtml(e.message);
