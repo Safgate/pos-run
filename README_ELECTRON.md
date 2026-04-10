@@ -35,6 +35,24 @@ This project is now configured to be built as a native desktop application for *
 
 **Linux desktop build**: use `npm run electron:build` (default targets depend on your platform).
 
+## Production Runtime (No Dev Server Needed)
+
+The packaged app starts its own embedded API server automatically. You should **not** run `npm run dev` on customer machines.
+
+Before launching the shipped app on Windows, create a `.env` file with production credentials.
+
+- For **portable builds**: place `.env` in the same folder as `POS Run-<version>-portable.exe`.
+- For **installed NSIS builds**: place `.env` in:
+  - `%APPDATA%/POS Run/.env`
+  - Example: `C:\Users\<you>\AppData\Roaming\POS Run\.env`
+
+You can copy from `.env.example` and set at least:
+
+```env
+SUPABASE_URL=...
+SUPABASE_SERVICE_ROLE_KEY=...
+```
+
 ## Important Notes
 
 -   **Database**: The app uses **Supabase** for data. Configure credentials in your environment (see project `.env` / deployment docs).

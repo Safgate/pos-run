@@ -45,6 +45,7 @@ function loadEnvFromFile() {
     const candidates = [];
     if (app.isPackaged) {
       candidates.push(path.join(path.dirname(process.execPath), '.env'));
+      candidates.push(path.join(app.getPath('userData'), '.env'));
       if (process.resourcesPath) {
         candidates.push(path.join(process.resourcesPath, '.env'));
       }
@@ -275,7 +276,17 @@ function startServer() {
     return;
   }
 
-  const serverPath = path.join(appRoot, 'dist', 'server.cjs');
+  const serverCandidates = [
+    path.join(process.resourcesPath || '', 'app.asar.unpacked', 'dist', 'server.cjs'),
+    path.join(appRoot, 'dist', 'server.cjs'),
+    path.join(process.resourcesPath || '', 'dist', 'server.cjs'),
+  ];
+  const serverPath = serverCandidates.find((p) => p && fs.existsSync(p));
+  if (!serverPath) {
+    console.error('Could not locate bundled API server entry file (dist/server.cjs).');
+    return;
+  }
+
   serverProcess = spawn(process.execPath, [serverPath], {
     env: {
       ...process.env,
