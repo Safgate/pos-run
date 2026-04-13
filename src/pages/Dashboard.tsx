@@ -2,13 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { useAppStore } from '../store';
 import { format, subDays } from 'date-fns';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
-import { DollarSign, TrendingUp, Users, ShoppingBag, Calendar, Star } from 'lucide-react';
+import { DollarSign, TrendingUp, Users, ShoppingBag, Calendar, Star, Banknote, Wallet } from 'lucide-react';
 
 export const Dashboard: React.FC = () => {
-  const { activeOrders, staff, shifts } = useAppStore();
+  const { activeOrders, staff, shifts, shiftExpenses } = useAppStore();
   const [revenueData, setRevenueData] = useState<any[]>([]);
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [dailyRevenue, setDailyRevenue] = useState(0);
+  const [dailyExpenses, setDailyExpenses] = useState(0);
   const [dailyOrders, setDailyOrders] = useState(0);
   const [topItems, setTopItems] = useState<any[]>([]);
 
@@ -20,26 +21,44 @@ export const Dashboard: React.FC = () => {
   };
 
   const fetchRevenueForDate = async (dateStr: string) => {
-    const { start, end } = getLocalDayRange(dateStr);
-    const params = new URLSearchParams({ start, end });
-    const res = await fetch(`/api/reports/revenue?${params.toString()}`);
-    return res.json();
+    try {
+      const { start, end } = getLocalDayRange(dateStr);
+      const params = new URLSearchParams({ start, end });
+      const res = await fetch(`/api/reports/revenue?${params.toString()}`);
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
+    } catch (err) {
+      console.error('fetchRevenueForDate error:', err);
+      return [];
+    }
+  };
+
+  const getExpensesForDate = (dateStr: string) => {
+    return shiftExpenses.filter(e => {
+      const eDate = e.expense_date || format(new Date(e.created_at), 'yyyy-MM-dd');
+      return eDate === dateStr;
+    }).reduce((sum, e) => sum + Number(e.amount || 0), 0);
   };
 
   useEffect(() => {
-    const fetchRevenue = async () => {
+    const fetchStats = async () => {
       const data = await fetchRevenueForDate(selectedDate);
       setDailyRevenue(data.reduce((sum: number, order: any) => sum + Number(order.total || 0), 0));
       setDailyOrders(data.length);
+      setDailyExpenses(getExpensesForDate(selectedDate));
     };
     const fetchTopItems = async () => {
-      const res = await fetch('/api/reports/top-items');
-      const data = await res.json();
-      setTopItems(data);
+      try {
+        const res = await fetch('/api/reports/top-items');
+        const data = await res.json();
+        if (Array.isArray(data)) setTopItems(data);
+      } catch (err) {
+        console.error('fetchTopItems error:', err);
+      }
     };
-    fetchRevenue();
+    fetchStats();
     fetchTopItems();
-  }, [selectedDate, activeOrders]); // Re-fetch when active orders change (completed)
+  }, [selectedDate, activeOrders, shiftExpenses]); // Re-fetch when active orders or expenses change
 
   useEffect(() => {
     const generateChartData = async () => {
@@ -80,14 +99,34 @@ export const Dashboard: React.FC = () => {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 md:gap-6">
         <div className="bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-zinc-100 flex items-center gap-4">
           <div className="w-10 h-10 md:w-12 md:h-12 bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center shrink-0">
             <DollarSign size={20} className="md:w-6 md:h-6" />
           </div>
           <div>
-            <p className="text-xs md:text-sm font-medium text-zinc-500">Revenue ({format(new Date(selectedDate), 'MMM d')})</p>
+            <p className="text-xs md:text-sm font-medium text-zinc-500">Gross Revenue</p>
             <h3 className="text-xl md:text-2xl font-bold text-zinc-900">DH{(dailyRevenue).toFixed(2)}</h3>
+          </div>
+        </div>
+
+        <div className="bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-zinc-100 flex items-center gap-4">
+          <div className="w-10 h-10 md:w-12 md:h-12 bg-red-100 text-red-600 rounded-xl flex items-center justify-center shrink-0">
+            <Banknote size={20} className="md:w-6 md:h-6" />
+          </div>
+          <div>
+            <p className="text-xs md:text-sm font-medium text-zinc-500">Expenses</p>
+            <h3 className="text-xl md:text-2xl font-bold text-red-600">DH{(dailyExpenses).toFixed(2)}</h3>
+          </div>
+        </div>
+
+        <div className="bg-zinc-900 p-5 md:p-6 rounded-2xl shadow-xl border border-zinc-800 flex items-center gap-4">
+          <div className="w-10 h-10 md:w-12 md:h-12 bg-zinc-800 text-emerald-400 rounded-xl flex items-center justify-center shrink-0">
+            <Wallet size={20} className="md:w-6 md:h-6" />
+          </div>
+          <div>
+            <p className="text-xs md:text-sm font-medium text-zinc-400">Net Revenue</p>
+            <h3 className="text-xl md:text-2xl font-bold text-white">DH{(dailyRevenue - dailyExpenses).toFixed(2)}</h3>
           </div>
         </div>
         
@@ -96,18 +135,8 @@ export const Dashboard: React.FC = () => {
             <ShoppingBag size={20} className="md:w-6 md:h-6" />
           </div>
           <div>
-            <p className="text-xs md:text-sm font-medium text-zinc-500">Orders ({format(new Date(selectedDate), 'MMM d')})</p>
+            <p className="text-xs md:text-sm font-medium text-zinc-500">Total Orders</p>
             <h3 className="text-xl md:text-2xl font-bold text-zinc-900">{dailyOrders}</h3>
-          </div>
-        </div>
-
-        <div className="bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-zinc-100 flex items-center gap-4">
-          <div className="w-10 h-10 md:w-12 md:h-12 bg-purple-100 text-purple-600 rounded-xl flex items-center justify-center shrink-0">
-            <TrendingUp size={20} className="md:w-6 md:h-6" />
-          </div>
-          <div>
-            <p className="text-xs md:text-sm font-medium text-zinc-500">Active Orders</p>
-            <h3 className="text-xl md:text-2xl font-bold text-zinc-900">{activeOrders.length}</h3>
           </div>
         </div>
 

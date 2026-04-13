@@ -1,6 +1,6 @@
 # POS Run - Native Desktop App
 
-This project is now configured to be built as a native desktop application for **Windows** and **Linux** using **Electron**.
+This project is now configured to be built as a native desktop application for **Windows**, **macOS**, and **Linux** using **Electron**.
 
 ## Prerequisites
 
@@ -20,31 +20,49 @@ This project is now configured to be built as a native desktop application for *
     ```
     This will start the Express server and the Electron window simultaneously.
 
-## How to Build for Windows
+## How to Build for All Platforms
 
-1.  **Install dependencies** and build:
+1.  **Install dependencies**:
     ```bash
     npm install
-    npm run build:windows
     ```
-2.  Output is in **`dist-electron/`**:
-    -   **`POS Run-<version>-portable.exe`** — self-extracting portable app (default; works when cross-building from Linux without Wine).
-    -   **`win-unpacked/`** — unpacked app folder (same as after install; useful for testing).
+2.  **Build for specific platform**:
+    -   **Windows**: `npm run build:windows`
+    -   **Linux**: `npm run build:linux`
+    -   **macOS**: `npm run build:mac` (requires building on a Mac)
+    -   **All**: `npm run build:all`
+
+3.  Output is in **`dist-electron/`**.
+
+### Windows Specifics
+
+-   **`POS Run-<version>-portable.exe`** — self-extracting portable app (default; works when cross-building from Linux without Wine).
+-   **`win-unpacked/`** — unpacked app folder (same as after install; useful for testing).
 
 **NSIS setup installer** (`npm run build:windows:nsis`): building the classic installer from **Linux** requires [Wine](https://www.winehq.org/) (electron-builder runs a Windows-only step). On **Windows**, run the same command for a normal `Setup` installer.
 
-**Linux desktop build**: use `npm run electron:build` (default targets depend on your platform).
+### Linux Specifics
+
+-   **AppImage**: A single portable executable that runs on most distributions.
+-   **deb**: Standard package for Debian-based systems (Ubuntu, etc.).
+
+### macOS Specifics
+
+-   **dmg**: Standard disk image for installation.
+-   **zip**: Compressed application.
+-   **Note**: Building for macOS generally requires a macOS environment for code signing and notarization.
 
 ## Production Runtime (No Dev Server Needed)
 
 The packaged app starts its own embedded API server automatically. You should **not** run `npm run dev` on customer machines.
 
-Before launching the shipped app on Windows, create a `.env` file with production credentials.
+Before launching the shipped app, create a `.env` file with production credentials.
 
-- For **portable builds**: place `.env` in the same folder as `POS Run-<version>-portable.exe`.
-- For **installed NSIS builds**: place `.env` in:
-  - `%APPDATA%/pos-run/.env`
-  - Example: `C:\Users\<you>\AppData\Roaming\pos-run\.env`
+- **Portable/Unpacked**: place `.env` in the same folder as the executable.
+- **Installed Apps**: place `.env` in the user data directory:
+  - **Windows**: `%APPDATA%/pos-run/.env`
+  - **macOS**: `~/Library/Application Support/pos-run/.env`
+  - **Linux**: `~/.config/pos-run/.env`
 
 You can copy from `.env.example` and set at least:
 

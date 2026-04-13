@@ -8,13 +8,18 @@ This contains everything you need to run your app locally.
 
 View your app in AI Studio: https://ai.studio/apps/4ca30140-6750-4c16-9f75-ff8ffa6303b2
 
-## Run Locally
+## Native Desktop App (Cross-Platform)
 
-**Prerequisites:**  Node.js
+This project can be built as a native desktop application for **Windows**, **macOS**, and **Linux** using Electron.
 
+1.  **Development**:
+    ```bash
+    npm run electron:dev
+    ```
+2.  **Build**:
+    -   Windows: `npm run build:windows`
+    -   Linux: `npm run build:linux`
+    -   macOS: `npm run build:mac`
+    -   All: `npm run build:all`
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+See [README_ELECTRON.md](README_ELECTRON.md) for detailed instructions on prerequisites and packaging.

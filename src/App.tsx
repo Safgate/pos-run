@@ -12,6 +12,7 @@ import { Menu } from './pages/Menu';
 import { Staff } from './pages/Staff';
 import { Settings } from './pages/Settings';
 import { Login } from './pages/Login';
+import { MyShift } from './pages/MyShift';
 
 const MainApp = () => {
   const { currentUser } = useAppStore();
@@ -27,13 +28,14 @@ const MainApp = () => {
     return <Login />;
   }
 
-  const isManagerOrAdmin = currentUser.role === 'Manager' || currentUser.role === 'Admin';
+  const isManagerOrAdmin = currentUser.role?.toLowerCase() === 'manager' || currentUser.role?.toLowerCase() === 'admin';
 
   return (
     <div className="flex flex-col md:flex-row h-screen bg-zinc-100 font-sans overflow-hidden">
       <Sidebar currentTab={currentTab} setCurrentTab={setCurrentTab} />
       <main className="flex-1 overflow-y-auto pb-16 md:pb-0">
         {currentTab === 'pos' && <POS />}
+        {currentTab === 'myshift' && <MyShift />}
         {currentTab === 'dashboard' && isManagerOrAdmin && <Dashboard />}
         {currentTab === 'menu' && isManagerOrAdmin && <Menu />}
         {currentTab === 'staff' && isManagerOrAdmin && <Staff />}

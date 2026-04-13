@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAppStore } from '../store';
 import { History, Search, Calendar, ChevronDown, ChevronUp, CheckCircle, XCircle, Clock, Trash2, Filter, DollarSign, Printer, User, Key, ShieldCheck, Settings as SettingsIcon, Save } from 'lucide-react';
 import { format, parseISO, startOfDay, endOfDay } from 'date-fns';
@@ -8,6 +8,7 @@ export const Settings: React.FC = () => {
   const [orderHistory, setOrderHistory] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [expandedOrder, setExpandedOrder] = useState<number | null>(null);
+  const [expandedShift, setExpandedShift] = useState<number | string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [confirmDelete, setConfirmDelete] = useState<{ type: 'order' | 'item', orderId: number, itemId?: number } | null>(null);
   const [showClearHistoryModal, setShowClearHistoryModal] = useState(false);
@@ -45,9 +46,14 @@ export const Settings: React.FC = () => {
     try {
       const response = await fetch('/api/orders/history');
       const data = await response.json();
-      setOrderHistory(data);
+      if (Array.isArray(data)) {
+        setOrderHistory(data);
+      } else {
+        setOrderHistory([]);
+      }
     } catch (error) {
       console.error('Failed to fetch order history:', error);
+      setOrderHistory([]);
     } finally {
       setIsLoading(false);
     }
@@ -139,6 +145,30 @@ export const Settings: React.FC = () => {
     
     return matchesSearch && matchesDate && matchesTotal;
   });
+
+  const groupedShifts = useMemo(() => {
+    const groups: Record<number | string, { shift: any, orders: any[], total: number }> = {};
+    
+    filteredOrders.forEach(order => {
+      const shiftId = order.shift_id || 'no-shift';
+      if (!groups[shiftId]) {
+        const shift = shifts.find(s => s.id === shiftId);
+        groups[shiftId] = { 
+          shift: shift || { id: shiftId, staff_name: order.staff_name, start_time: order.created_at }, 
+          orders: [], 
+          total: 0 
+        };
+      }
+      groups[shiftId].orders.push(order);
+      groups[shiftId].total += order.total;
+    });
+
+    return Object.values(groups).sort((a, b) => {
+      const dateA = new Date(a.shift.start_time).getTime();
+      const dateB = new Date(b.shift.start_time).getTime();
+      return dateB - dateA;
+    });
+  }, [filteredOrders, shifts]);
 
   const printShiftReport = async (shift: any) => {
     const serverName = staff.find(s => s.id === shift.staff_id)?.name || shift.staff_name || 'Unknown';
@@ -378,101 +408,132 @@ export const Settings: React.FC = () => {
           )}
         </div>
 
-        <div className="overflow-x-auto -mx-5 md:mx-0">
+        <div className="p-2 space-y-4">
           {isLoading ? (
             <div className="p-12 text-center text-zinc-500">Loading order history...</div>
-          ) : filteredOrders.length === 0 ? (
+          ) : groupedShifts.length === 0 ? (
             <div className="p-12 text-center text-zinc-500">No orders found.</div>
           ) : (
-            <table className="w-full text-left border-collapse min-w-[700px] md:min-w-0">
-              <thead>
-                <tr className="bg-zinc-50 border-b border-zinc-100">
-                  <th className="px-5 md:px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-wider">Order ID</th>
-                  <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-wider">Date & Time</th>
-                  <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-wider">Table</th>
-                  <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-wider">Server</th>
-                  <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-wider">Total</th>
-                  <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-wider pr-5 md:pr-6">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-100">
-                {filteredOrders.map(order => (
-                  <React.Fragment key={order.id}>
-                    <tr className="hover:bg-zinc-50/50 transition-colors text-sm md:text-base">
-                      <td className="px-5 md:px-6 py-4 font-bold text-zinc-900">#{order.id}</td>
-                      <td className="px-6 py-4 text-zinc-600">
-                        <div className="flex flex-col">
-                          <span className="font-medium">{format(new Date(order.created_at), 'MMM dd, yyyy')}</span>
-                          <span className="text-xs text-zinc-400">{format(new Date(order.created_at), 'HH:mm:ss')}</span>
+            <div className="space-y-4">
+              {groupedShifts.map(({ shift, orders, total }) => (
+                <div key={shift.id} className="bg-zinc-50/50 rounded-2xl border border-zinc-100 overflow-hidden transition-all">
+                  <button
+                    onClick={() => setExpandedShift(expandedShift === shift.id ? null : shift.id)}
+                    className="w-full flex flex-col md:flex-row md:items-center justify-between p-5 hover:bg-zinc-100/50 transition-colors text-left gap-4"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-emerald-500 shadow-sm border border-zinc-100">
+                        <Clock size={24} />
+                      </div>
+                      <div>
+                        <div className="font-black text-zinc-900 text-lg">
+                          {shift.staff_name || 'System'}
                         </div>
-                      </td>
-                      <td className="px-6 py-4 text-zinc-600">
-                        {order.table_id ? tables.find(t => t.id === order.table_id)?.name : 'Takeaway'}
-                      </td>
-                      <td className="px-6 py-4 text-zinc-600 font-medium">
-                        {order.staff_name || '-'}
-                      </td>
-                      <td className="px-6 py-4 font-bold text-emerald-600">
-                        DH{(order.total).toFixed(2)}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] md:text-xs font-bold border ${getStatusColor(order.status)}`}>
-                          {getStatusIcon(order.status)}
-                          {order.status.toUpperCase()}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 pr-5 md:pr-6">
-                        <button
-                          onClick={() => setExpandedOrder(expandedOrder === order.id ? null : order.id)}
-                          className="p-2 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg transition-all"
-                        >
-                          {expandedOrder === order.id ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                        </button>
-                      </td>
-                    </tr>
-                    {expandedOrder === order.id && (
-                      <tr className="bg-zinc-50/30">
-                        <td colSpan={7} className="px-5 md:px-6 py-4">
-                          <div className="bg-white rounded-xl border border-zinc-100 p-4 space-y-3">
-                            <h4 className="font-bold text-zinc-900 text-[10px] md:text-xs uppercase tracking-wider">Order Details</h4>
-                            <div className="space-y-2">
-                              {order.items.map((item: any, idx: number) => (
-                                <div key={idx} className="flex justify-between items-center text-xs md:text-sm group">
-                                  <span className="text-zinc-600">{item.quantity}x {item.name}</span>
-                                  <div className="flex items-center gap-4">
-                                    <span className="font-medium text-zinc-900">DH{(item.price * item.quantity).toFixed(2)}</span>
+                        <div className="text-zinc-500 text-xs font-bold uppercase tracking-wider">
+                          {format(new Date(shift.start_time), 'PPP p')}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center justify-between md:justify-end gap-8">
+                      <div className="text-right">
+                        <div className="text-zinc-400 text-[10px] font-bold uppercase tracking-widest mb-1">Total Sales</div>
+                        <div className="font-black text-emerald-600 text-xl">DH{total.toFixed(2)}</div>
+                      </div>
+                      <div className="text-right hidden sm:block">
+                        <div className="text-zinc-400 text-[10px] font-bold uppercase tracking-widest mb-1">Orders</div>
+                        <div className="font-black text-zinc-900 text-xl">{orders.length}</div>
+                      </div>
+                      <div className={`p-2 rounded-xl transition-transform duration-300 ${expandedShift === shift.id ? 'rotate-180 bg-emerald-500 text-white' : 'bg-white text-zinc-400'}`}>
+                        <ChevronDown size={20} />
+                      </div>
+                    </div>
+                  </button>
+
+                  {expandedShift === shift.id && (
+                    <div className="p-4 bg-white border-t border-zinc-100">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse">
+                          <thead>
+                            <tr className="text-xs font-bold text-zinc-400 uppercase tracking-widest border-b border-zinc-50">
+                              <th className="px-4 py-3">Order</th>
+                              <th className="px-4 py-3">Time</th>
+                              <th className="px-4 py-3">Table</th>
+                              <th className="px-4 py-3">Total</th>
+                              <th className="px-4 py-3">Status</th>
+                              <th className="px-4 py-3 text-right">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-zinc-50">
+                            {orders.map(order => (
+                              <React.Fragment key={order.id}>
+                                <tr className="hover:bg-zinc-50/50 transition-colors">
+                                  <td className="px-4 py-4 font-bold text-zinc-900">#{order.id}</td>
+                                  <td className="px-4 py-4 text-zinc-500 text-sm">
+                                    {format(new Date(order.created_at), 'p')}
+                                  </td>
+                                  <td className="px-4 py-4 text-zinc-600 font-medium">
+                                    {order.table_id ? tables.find(t => t.id === order.table_id)?.name : 'Takeaway'}
+                                  </td>
+                                  <td className="px-4 py-4 font-black text-zinc-900">DH{order.total.toFixed(2)}</td>
+                                  <td className="px-4 py-4">
+                                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold border ${getStatusColor(order.status)}`}>
+                                      {getStatusIcon(order.status)}
+                                      {order.status.toUpperCase()}
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-4 text-right">
                                     <button
-                                      onClick={() => setConfirmDelete({ type: 'item', orderId: order.id, itemId: item.id })}
-                                      className="p-1 text-red-400 hover:text-red-600 md:opacity-0 md:group-hover:opacity-100 transition-all"
-                                      title="Remove item"
+                                      onClick={() => setExpandedOrder(expandedOrder === order.id ? null : order.id)}
+                                      className="p-2 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg transition-all"
                                     >
-                                      <Trash2 size={14} />
+                                      {expandedOrder === order.id ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
                                     </button>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                            <div className="pt-2 border-t border-zinc-100 flex justify-between font-bold text-sm md:text-base">
-                              <span>Total</span>
-                              <span className="text-emerald-600">DH{(order.total).toFixed(2)}</span>
-                            </div>
-                            <div className="flex gap-3 pt-4">
-                              <button
-                                onClick={() => setConfirmDelete({ type: 'order', orderId: order.id })}
-                                className="flex-1 flex items-center justify-center gap-2 bg-red-50 text-red-600 py-2 rounded-lg font-bold hover:bg-red-100 transition-colors text-sm"
-                              >
-                                <Trash2 size={18} /> Delete Order
-                              </button>
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </React.Fragment>
-                ))}
-              </tbody>
-            </table>
+                                  </td>
+                                </tr>
+                                {expandedOrder === order.id && (
+                                  <tr>
+                                    <td colSpan={6} className="px-4 pb-4">
+                                      <div className="bg-zinc-50/50 rounded-xl border border-zinc-100 p-4 space-y-3">
+                                        <div className="flex justify-between items-center mb-2">
+                                          <h4 className="font-bold text-zinc-500 text-[10px] uppercase tracking-widest">Order Details</h4>
+                                          <button
+                                            onClick={() => setConfirmDelete({ type: 'order', orderId: order.id })}
+                                            className="text-red-500 hover:text-red-600 text-[10px] font-bold uppercase tracking-widest flex items-center gap-1"
+                                          >
+                                            <Trash2 size={12} /> Delete Order
+                                          </button>
+                                        </div>
+                                        <div className="space-y-2">
+                                          {order.items.map((item: any, idx: number) => (
+                                            <div key={idx} className="flex justify-between items-center text-sm group">
+                                              <span className="text-zinc-600 font-medium">{item.quantity}x {item.name}</span>
+                                              <div className="flex items-center gap-3">
+                                                <span className="font-bold text-zinc-900">DH{(item.price * item.quantity).toFixed(2)}</span>
+                                                <button
+                                                  onClick={() => setConfirmDelete({ type: 'item', orderId: order.id, itemId: item.id })}
+                                                  className="p-1 text-red-400 hover:text-red-600 transition-all"
+                                                >
+                                                  <Trash2 size={14} />
+                                                </button>
+                                              </div>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                )}
+                              </React.Fragment>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
           )}
         </div>
       </div>

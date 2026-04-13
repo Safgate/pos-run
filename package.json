@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.0.7",
   "description": "POS Run — restaurant point of sale (Electron + Express + Supabase)",
-  "author": "Safgate",
+  "author": "Safgate <info@safgate.com>",
   "repository": {
     "type": "git",
     "url": "https://github.com/Safgate/pos-run.git"
@@ -24,6 +24,9 @@
     "start": "npm run build:server && NODE_ENV=production node dist/server.cjs",
     "electron:dev": "npm run dev:server:build && concurrently \"npm run dev:server:watch\" \"node --watch dist/server-dev.cjs\" \"wait-on http://127.0.0.1:3001 && electron --no-sandbox electron-main.cjs\"",
     "electron:build": "npm run build && npm run build:server && electron-builder --publish never",
+    "build:linux": "npm run build && npm run build:server && electron-builder --linux --publish never",
+    "build:mac": "npm run build && npm run build:server && electron-builder --mac --publish never",
+    "build:all": "npm run build && npm run build:server && electron-builder -wml --publish never",
     "build:windows": "npm run build && npm run build:server && electron-builder --win --publish never",
     "build:windows:portable": "npm run build && npm run build:server && electron-builder --win --x64 -c.win.target=portable --publish never",
     "build:windows:dir": "npm run build && npm run build:server && electron-builder --win --dir --publish never",
@@ -62,6 +65,20 @@
         }
       ],
       "signAndEditExecutable": false
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Office"
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.business"
     },
     "portable": {
       "artifactName": "${productName}-${version}-portable.${ext}"

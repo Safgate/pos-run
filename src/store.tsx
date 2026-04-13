@@ -37,48 +37,95 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const wsRef = useRef<WebSocket | null>(null);
 
   const fetchCategories = async () => {
-    const res = await fetch('/api/categories');
-    setCategories(await res.json());
+    try {
+      const res = await fetch('/api/categories');
+      const data = await res.json();
+      if (Array.isArray(data)) setCategories(data);
+    } catch (err) {
+      console.error('fetchCategories error:', err);
+    }
   };
 
   const fetchMenuItems = async () => {
-    const res = await fetch('/api/menu-items');
-    setMenuItems(await res.json());
+    try {
+      const res = await fetch('/api/menu-items');
+      const data = await res.json();
+      if (Array.isArray(data)) setMenuItems(data);
+    } catch (err) {
+      console.error('fetchMenuItems error:', err);
+    }
   };
 
   const fetchTables = async () => {
-    const res = await fetch('/api/tables');
-    setTables(await res.json());
+    try {
+      const res = await fetch('/api/tables');
+      const data = await res.json();
+      if (Array.isArray(data)) setTables(data);
+    } catch (err) {
+      console.error('fetchTables error:', err);
+    }
   };
 
   const fetchActiveOrders = async () => {
-    const res = await fetch('/api/orders/active');
-    setActiveOrders(await res.json());
+    try {
+      const res = await fetch('/api/orders/active');
+      const data = await res.json();
+      if (Array.isArray(data)) setActiveOrders(data);
+    } catch (err) {
+      console.error('fetchActiveOrders error:', err);
+    }
   };
 
   const fetchStaff = async () => {
-    const res = await fetch('/api/staff');
-    setStaff(await res.json());
+    try {
+      const res = await fetch('/api/staff');
+      const data = await res.json();
+      if (Array.isArray(data)) setStaff(data);
+    } catch (err) {
+      console.error('fetchStaff error:', err);
+    }
   };
 
   const fetchShifts = async () => {
-    const res = await fetch('/api/shifts');
-    setShifts(await res.json());
+    try {
+      const res = await fetch('/api/shifts');
+      const data = await res.json();
+      if (Array.isArray(data)) setShifts(data);
+    } catch (err) {
+      console.error('fetchShifts error:', err);
+    }
   };
 
   const fetchShiftExpenses = async () => {
-    const res = await fetch('/api/shift-expenses');
-    setShiftExpenses(await res.json());
+    try {
+      const res = await fetch('/api/shift-expenses');
+      const data = await res.json();
+      if (Array.isArray(data)) setShiftExpenses(data);
+    } catch (err) {
+      console.error('fetchShiftExpenses error:', err);
+    }
   };
 
   const fetchStaffPayments = async () => {
-    const res = await fetch('/api/staff/payments');
-    setStaffPayments(await res.json());
+    try {
+      const res = await fetch('/api/staff/payments');
+      const data = await res.json();
+      if (Array.isArray(data)) setStaffPayments(data);
+    } catch (err) {
+      console.error('fetchStaffPayments error:', err);
+    }
   };
 
   const fetchSettings = async () => {
-    const res = await fetch('/api/settings');
-    setSettings(await res.json());
+    try {
+      const res = await fetch('/api/settings');
+      const data = await res.json();
+      if (data && typeof data === 'object' && !Array.isArray(data)) {
+        setSettings(data);
+      }
+    } catch (err) {
+      console.error('fetchSettings error:', err);
+    }
   };
 
   const updateSettings = async (newSettings: Record<string, string>) => {

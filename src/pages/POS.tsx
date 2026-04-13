@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { useAppStore } from '../store';
 import { MenuItem, OrderItem, Table } from '../types';
-import { ShoppingCart, Plus, Minus, Trash2, CheckCircle, XCircle, Coffee, Search } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Trash2, CheckCircle, XCircle, Coffee, Search, Banknote } from 'lucide-react';
+import { format } from 'date-fns';
 
 /** Base roll width (mm) before width multiplier. */
 function receiptBasePaperMm(): number {
@@ -40,13 +41,54 @@ function receiptPageLengthMm(): number | null {
 }
 
 export const POS: React.FC = () => {
-  const { categories, menuItems, tables, currentUser, settings } = useAppStore();
+  const { categories, menuItems, tables, currentUser, settings, shifts, refreshData } = useAppStore();
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [cart, setCart] = useState<OrderItem[]>([]);
   const [selectedTable, setSelectedTable] = useState<number | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  
+  // Expense Modal State
+  const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
+  const [expenseAmount, setExpenseAmount] = useState('');
+  const [expenseDescription, setExpenseDescription] = useState('');
+  const [isSubmittingExpense, setIsSubmittingExpense] = useState(false);
+
+  const activeShift = useMemo(() => {
+    if (!currentUser) return null;
+    return shifts.find(s => s.staff_id === currentUser.id && s.end_time === null);
+  }, [shifts, currentUser]);
+
+  const handleAddExpense = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeShift || !expenseAmount || isSubmittingExpense) return;
+
+    setIsSubmittingExpense(true);
+    try {
+      const res = await fetch('/api/shift-expenses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          shift_id: activeShift.id,
+          amount: parseFloat(expenseAmount),
+          description: expenseDescription,
+          expense_date: format(new Date(), 'yyyy-MM-dd')
+        })
+      });
+
+      if (res.ok) {
+        setIsExpenseModalOpen(false);
+        setExpenseAmount('');
+        setExpenseDescription('');
+        refreshData();
+      }
+    } catch (error) {
+      console.error('Error adding expense:', error);
+    } finally {
+      setIsSubmittingExpense(false);
+    }
+  };
 
   const filteredItems = useMemo(() => {
     let items = menuItems;
@@ -565,20 +607,82 @@ export const POS: React.FC = () => {
         </div>
 
         {/* Checkout */}
-        <div className="p-5 bg-zinc-50 border-t border-zinc-200">
-          <div className="flex justify-between items-center mb-4">
+        <div className="p-5 bg-zinc-50 border-t border-zinc-200 space-y-3">
+          <div className="flex justify-between items-center mb-1">
             <span className="text-zinc-500 font-medium">Total</span>
             <span className="text-2xl md:text-3xl font-bold text-zinc-900">DH{(cartTotal).toFixed(2)}</span>
           </div>
-          <button
-            onClick={placeOrder}
-            disabled={cart.length === 0 || isProcessing}
-            className="w-full bg-emerald-500 hover:bg-emerald-600 disabled:bg-zinc-300 disabled:cursor-not-allowed text-white font-bold py-4 rounded-xl shadow-lg shadow-emerald-500/30 transition-all active:scale-[0.98]"
-          >
-            {isProcessing ? 'Processing...' : 'Place Order'}
-          </button>
+          
+          <div className="flex gap-2">
+            <button
+              onClick={() => setIsExpenseModalOpen(true)}
+              disabled={!activeShift}
+              title={!activeShift ? "Start a shift to add expenses" : "Add shift expense"}
+              className="flex items-center justify-center p-4 bg-white border-2 border-zinc-200 text-zinc-600 rounded-xl hover:bg-zinc-100 transition-all active:scale-95 disabled:opacity-50"
+            >
+              <Banknote size={24} />
+            </button>
+            <button
+              onClick={placeOrder}
+              disabled={cart.length === 0 || isProcessing}
+              className="flex-1 bg-emerald-500 hover:bg-emerald-600 disabled:bg-zinc-300 disabled:cursor-not-allowed text-white font-bold py-4 rounded-xl shadow-lg shadow-emerald-500/30 transition-all active:scale-[0.98]"
+            >
+              {isProcessing ? 'Processing...' : 'Place Order'}
+            </button>
+          </div>
         </div>
       </div>
+
+      {/* Expense Modal */}
+      {isExpenseModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+          <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl animate-in fade-in zoom-in duration-200">
+            <h3 className="text-2xl font-bold text-zinc-900 mb-6">Add Shift Expense</h3>
+            <form onSubmit={handleAddExpense} className="space-y-6">
+              <div>
+                <label className="block text-sm font-bold text-zinc-500 uppercase tracking-wider mb-2">Amount (DH)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  required
+                  autoFocus
+                  value={expenseAmount}
+                  onChange={(e) => setExpenseAmount(e.target.value)}
+                  className="w-full px-4 py-4 bg-zinc-50 border-2 border-zinc-100 rounded-2xl outline-none focus:border-zinc-900 font-bold text-xl"
+                  placeholder="0.00"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-zinc-500 uppercase tracking-wider mb-2">Description</label>
+                <input
+                  type="text"
+                  required
+                  value={expenseDescription}
+                  onChange={(e) => setExpenseDescription(e.target.value)}
+                  className="w-full px-4 py-4 bg-zinc-50 border-2 border-zinc-100 rounded-2xl outline-none focus:border-zinc-900 font-medium"
+                  placeholder="e.g. Milk, Water..."
+                />
+              </div>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsExpenseModalOpen(false)}
+                  className="flex-1 py-4 rounded-2xl font-bold text-zinc-500 hover:bg-zinc-100 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingExpense}
+                  className="flex-1 bg-zinc-900 text-white py-4 rounded-2xl font-bold hover:bg-zinc-800 transition-all active:scale-95 disabled:opacity-50"
+                >
+                  {isSubmittingExpense ? 'Adding...' : 'Add Expense'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -30,12 +30,14 @@ export const Staff: React.FC = () => {
         const res = await fetch('/api/orders/history');
         if (!res.ok) return;
         const orders = await res.json();
-        const revenueByStaff = (orders || []).reduce((acc: Record<number, number>, order: any) => {
+        if (!Array.isArray(orders)) return;
+
+        const revenueByStaff = orders.reduce((acc: Record<number, number>, order: any) => {
           if (order.status !== 'completed' || !order.staff_id) return acc;
           acc[order.staff_id] = (acc[order.staff_id] || 0) + Number(order.total || 0);
           return acc;
         }, {});
-        const revenueByShift = (orders || []).reduce((acc: Record<number, number>, order: any) => {
+        const revenueByShift = orders.reduce((acc: Record<number, number>, order: any) => {
           if (order.status !== 'completed' || !order.shift_id) return acc;
           acc[order.shift_id] = (acc[order.shift_id] || 0) + Number(order.total || 0);
           return acc;

@@ -294,8 +294,8 @@ function startServer() {
     lastServerError =
       `Missing required environment variable(s): ${missingEnv.join(', ')}.\n` +
       `Create .env with these keys in one of:\n` +
-      `- ${installDir}\\.env\n` +
-      `- ${userDataDir}\\.env`;
+      `- ${path.join(installDir, '.env')}\n` +
+      `- ${path.join(userDataDir, '.env')}`;
     console.error(lastServerError);
     return;
   }

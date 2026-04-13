@@ -63,16 +63,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab }) =
   };
 
   const navItems = [
-    { id: 'pos', label: 'POS', icon: Coffee, roles: ['Manager', 'Admin', 'Barista', 'Staff', 'Waiter'] },
+    { id: 'pos', label: 'POS', icon: Coffee },
+    { id: 'myshift', label: 'My Shift', icon: Clock },
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['Manager', 'Admin'] },
     { id: 'menu', label: 'Menu', icon: MenuIcon, roles: ['Manager', 'Admin'] },
     { id: 'staff', label: 'Staff', icon: Users, roles: ['Manager', 'Admin'] },
     { id: 'settings', label: 'Settings', icon: SettingsIcon, roles: ['Manager', 'Admin'] },
   ];
 
-  const visibleNavItems = navItems.filter(item => 
-    !currentUser || item.roles.includes(currentUser.role) || currentUser.role === 'Admin' || currentUser.role === 'Manager'
-  );
+  const visibleNavItems = navItems.filter(item => {
+    if (!item.roles) return true;
+    if (!currentUser) return false;
+    const userRole = (currentUser.role || '').toLowerCase();
+    return item.roles.some(r => r.toLowerCase() === userRole) || userRole === 'admin' || userRole === 'manager';
+  });
 
   return (
     <>

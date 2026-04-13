@@ -71,6 +71,16 @@ CREATE TABLE IF NOT EXISTS staff_payments (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Shift Expenses Table
+CREATE TABLE IF NOT EXISTS shift_expenses (
+  id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+  shift_id BIGINT REFERENCES shifts(id) ON DELETE CASCADE,
+  amount DECIMAL(12, 2) NOT NULL CHECK (amount >= 0),
+  description TEXT NOT NULL DEFAULT '',
+  expense_date DATE NOT NULL DEFAULT (CURRENT_DATE),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- Settings Table
 CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
