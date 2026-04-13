@@ -11,7 +11,7 @@ export const Staff: React.FC = () => {
   const [isAddingStaff, setIsAddingStaff] = useState(false);
   const [editingStaffId, setEditingStaffId] = useState<number | null>(null);
   const [newStaff, setNewStaff] = useState({ name: '', role: '', pin: '' });
-  const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<{ type: 'staff' | 'shift', id: number } | null>(null);
 
   const [expenseShift, setExpenseShift] = useState<Shift | null>(null);
   const [newShiftExpense, setNewShiftExpense] = useState({ amount: '', description: '', expense_date: '' });
@@ -360,7 +360,7 @@ export const Staff: React.FC = () => {
                           <Edit2 size={18} />
                         </button>
                         <button 
-                          onClick={() => setConfirmDelete(member.id)}
+                          onClick={() => setConfirmDelete({ type: 'staff', id: member.id })}
                           className="p-1.5 md:p-2 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-lg"
                         >
                           <Trash2 size={18} />
@@ -505,13 +505,22 @@ export const Staff: React.FC = () => {
                       <td className="py-4 text-right font-bold pr-5 md:pr-0">
                         <div className="flex items-center justify-end gap-3">
                           DH{(shiftRevenue[shift.id] || 0).toFixed(2)}
-                          <button 
-                            onClick={() => handlePrintShiftReport(shift)}
-                            className="p-2 text-zinc-400 hover:text-emerald-500 hover:bg-emerald-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
-                            title="Print Shift Report"
-                          >
-                            <Receipt size={18} />
-                          </button>
+                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button 
+                              onClick={() => handlePrintShiftReport(shift)}
+                              className="p-2 text-zinc-400 hover:text-emerald-500 hover:bg-emerald-50 rounded-lg transition-all"
+                              title="Print Shift Report"
+                            >
+                              <Receipt size={18} />
+                            </button>
+                            <button 
+                              onClick={() => setConfirmDelete({ type: 'shift', id: shift.id })}
+                              className="p-2 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                              title="Delete Shift"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </div>
                         </div>
                       </td>
                     </tr>
@@ -706,7 +715,9 @@ export const Staff: React.FC = () => {
           <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-in fade-in zoom-in duration-200">
             <h3 className="text-xl font-bold text-zinc-900 mb-2">Confirm Deletion</h3>
             <p className="text-zinc-500 mb-6">
-              Are you sure you want to delete this staff member? This action cannot be undone.
+              {confirmDelete.type === 'staff' 
+                ? 'Are you sure you want to delete this staff member? This will remove all their records and shift history.'
+                : 'Are you sure you want to delete this shift? Related expenses will be removed, and orders will be unassigned.'}
             </p>
             <div className="flex gap-3">
               <button
@@ -717,7 +728,11 @@ export const Staff: React.FC = () => {
               </button>
               <button
                 onClick={async () => {
-                  await handleDeleteStaff(confirmDelete);
+                  if (confirmDelete.type === 'staff') {
+                    await handleDeleteStaff(confirmDelete.id);
+                  } else {
+                    await fetch(`/api/shifts/${confirmDelete.id}`, { method: 'DELETE' });
+                  }
                   setConfirmDelete(null);
                 }}
                 className="flex-1 py-2 bg-red-500 text-white rounded-xl font-bold hover:bg-red-600 transition-all shadow-lg shadow-red-500/20"

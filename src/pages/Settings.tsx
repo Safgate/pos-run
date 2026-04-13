@@ -10,7 +10,7 @@ export const Settings: React.FC = () => {
   const [expandedOrder, setExpandedOrder] = useState<number | null>(null);
   const [expandedShift, setExpandedShift] = useState<number | string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [confirmDelete, setConfirmDelete] = useState<{ type: 'order' | 'item', orderId: number, itemId?: number } | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<{ type: 'order' | 'item' | 'shift', orderId?: number, itemId?: number, shiftId?: number | string } | null>(null);
   const [showClearHistoryModal, setShowClearHistoryModal] = useState(false);
   const [clearHistoryText, setClearHistoryText] = useState('');
   const [clearHistoryPin, setClearHistoryPin] = useState('');
@@ -435,7 +435,7 @@ export const Settings: React.FC = () => {
                       </div>
                     </div>
                     
-                    <div className="flex items-center justify-between md:justify-end gap-8">
+                    <div className="flex items-center justify-between md:justify-end gap-4 sm:gap-8">
                       <div className="text-right">
                         <div className="text-zinc-400 text-[10px] font-bold uppercase tracking-widest mb-1">Total Sales</div>
                         <div className="font-black text-emerald-600 text-xl">DH{total.toFixed(2)}</div>
@@ -444,6 +444,20 @@ export const Settings: React.FC = () => {
                         <div className="text-zinc-400 text-[10px] font-bold uppercase tracking-widest mb-1">Orders</div>
                         <div className="font-black text-zinc-900 text-xl">{orders.length}</div>
                       </div>
+
+                      {shift.id !== 'no-shift' && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setConfirmDelete({ type: 'shift', shiftId: shift.id });
+                          }}
+                          className="p-2 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                          title="Delete Shift"
+                        >
+                          <Trash2 size={20} />
+                        </button>
+                      )}
+
                       <div className={`p-2 rounded-xl transition-transform duration-300 ${expandedShift === shift.id ? 'rotate-180 bg-emerald-500 text-white' : 'bg-white text-zinc-400'}`}>
                         <ChevronDown size={20} />
                       </div>
@@ -820,6 +834,8 @@ export const Settings: React.FC = () => {
             <p className="text-zinc-500 mb-6">
               {confirmDelete.type === 'order' 
                 ? 'Are you sure you want to delete this entire order? This action cannot be undone.' 
+                : confirmDelete.type === 'shift'
+                ? 'Are you sure you want to delete this shift? Related expenses will be removed, and orders will be unassigned from this shift.'
                 : 'Are you sure you want to remove this item from the order?'}
             </p>
             <div className="flex gap-3">
@@ -831,10 +847,13 @@ export const Settings: React.FC = () => {
               </button>
               <button
                 onClick={async () => {
-                  if (confirmDelete.type === 'order') {
+                  if (confirmDelete.type === 'order' && confirmDelete.orderId) {
                     await fetch(`/api/orders/${confirmDelete.orderId}`, { method: 'DELETE' });
                     setExpandedOrder(null);
-                  } else if (confirmDelete.itemId) {
+                  } else if (confirmDelete.type === 'shift' && confirmDelete.shiftId) {
+                    await fetch(`/api/shifts/${confirmDelete.shiftId}`, { method: 'DELETE' });
+                    setExpandedShift(null);
+                  } else if (confirmDelete.itemId && confirmDelete.orderId) {
                     await fetch(`/api/orders/${confirmDelete.orderId}/items/${confirmDelete.itemId}`, { method: 'DELETE' });
                   }
                   setConfirmDelete(null);

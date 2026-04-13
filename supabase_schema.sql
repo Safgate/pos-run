@@ -130,3 +130,17 @@ INSERT INTO tables (name, status) VALUES
 ('Table 5', 'available'),
 ('Table 6', 'available')
 ON CONFLICT DO NOTHING;
+
+-- Create a view that automatically calculates popularity (total quantity sold)
+CREATE OR REPLACE VIEW menu_items_with_popularity AS
+SELECT 
+    m.*,
+    COALESCE((
+        SELECT SUM(quantity)
+        FROM order_items
+        WHERE menu_item_id = m.id
+    ), 0) as popularity
+FROM menu_items m;
+
+-- Ensure the view is accessible
+ALTER VIEW menu_items_with_popularity OWNER TO postgres;

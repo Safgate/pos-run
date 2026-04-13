@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useAppStore } from '../store';
 import { MenuItem, OrderItem, Table } from '../types';
-import { ShoppingCart, Plus, Minus, Trash2, CheckCircle, XCircle, Coffee, Search, Banknote } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Trash2, CheckCircle, XCircle, Coffee, Search, Banknote, Star } from 'lucide-react';
 import { format } from 'date-fns';
 
 /** Base roll width (mm) before width multiplier. */
@@ -91,7 +91,20 @@ export const POS: React.FC = () => {
   };
 
   const filteredItems = useMemo(() => {
-    let items = menuItems;
+    let items = [...menuItems];
+    
+    // Sort by popularity (replayed items) descending
+    items.sort((a, b) => {
+      const popA = a.popularity || 0;
+      const popB = b.popularity || 0;
+      if (popB !== popA) return popB - popA;
+      return a.name.localeCompare(b.name); // Secondary sort alphabetically
+    });
+
+    if (selectedCategory === -1) {
+      return items.slice(0, 12); // Show top 12 popular items across categories
+    }
+
     if (selectedCategory !== null) {
       items = items.filter(item => item.category_id === selectedCategory);
     }
@@ -477,6 +490,17 @@ export const POS: React.FC = () => {
               }`}
             >
               All Items
+            </button>
+            <button
+              onClick={() => setSelectedCategory(-1)}
+              className={`px-6 py-2.5 rounded-full font-medium whitespace-nowrap flex items-center gap-2 transition-all ${
+                selectedCategory === -1 
+                  ? 'bg-amber-500 text-white' 
+                  : 'bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 shadow-sm'
+              }`}
+            >
+              <Star size={16} fill={selectedCategory === -1 ? "currentColor" : "none"} />
+              Most Popular
             </button>
             {categories.map(category => (
               <button

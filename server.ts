@@ -85,7 +85,11 @@ async function startServer() {
 
   // Menu Items
   app.get('/api/menu-items', async (req, res) => {
-    const { data, error } = await supabase.from('menu_items').select('*');
+    // Use the new view to get the 'popularity' field for each item
+    const { data, error } = await supabase
+      .from('menu_items_with_popularity')
+      .select('*')
+      .order('name', { ascending: true }); // Default alphabetical fallback
     if (error) return res.status(500).json({ error: error.message });
     res.json(data);
   });
@@ -446,6 +450,14 @@ async function startServer() {
   app.put('/api/shifts/:id/close', async (req, res) => {
     const { id } = req.params;
     const { error } = await supabase.from('shifts').update({ end_time: new Date().toISOString() }).eq('id', id);
+    if (error) return res.status(500).json({ error: error.message });
+    broadcastUpdate('shifts_updated');
+    res.json({ success: true });
+  });
+
+  app.delete('/api/shifts/:id', async (req, res) => {
+    const { id } = req.params;
+    const { error } = await supabase.from('shifts').delete().eq('id', id);
     if (error) return res.status(500).json({ error: error.message });
     broadcastUpdate('shifts_updated');
     res.json({ success: true });

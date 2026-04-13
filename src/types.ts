@@ -9,6 +9,7 @@ export interface MenuItem {
   name: string;
   price: number;
   image_url: string | null;
+  popularity?: number;
 }
 
 export interface Table {
